@@ -10,6 +10,17 @@
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- MSAL Library — Microsoft official CDN with EU fallback -->
+<script type="text/javascript" src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"
+  integrity="sha384-PARf28kmic36Ve+O3DnUerRXFtOQ7ZDqRDGpLcbljly5/N39T2OV3kt3QsWOKeAX"
+  crossorigin="anonymous"></script>
+<script type="text/javascript">
+  if (typeof msal === 'undefined') {
+    document.write(unescape("%3Cscript src='https://alcdn.msftauth.net/browser/2.35.0/js/msal-browser.min.js' type='text/javascript'%3E%3C/script%3E"));
+  }
+</script>
+
 <style>
   :root {
     --bg: #0f1117; --surface: #1a1f2e; --surface2: #222840; --border: #2e3558;
@@ -26,7 +37,7 @@
   #loader .logo { font-family: var(--font-head); font-size: 2rem; font-weight: 800; color: var(--accent); letter-spacing: -1px; }
   #loader .sub { color: var(--text-dim); font-size: .75rem; margin-top: 6px; letter-spacing: 2px; text-transform: uppercase; }
   #loader .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin-top: 32px; }
-  #loader .msg { color: var(--text-dim); font-size: .75rem; margin-top: 16px; }
+  #loader .msg { color: var(--text-dim); font-size: .75rem; margin-top: 16px; text-align: center; padding: 0 20px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .screen { display: none; min-height: 100vh; flex-direction: column; animation: fadeIn .3s ease; }
@@ -45,7 +56,7 @@
 
   .content { flex: 1; padding: 20px; max-width: 600px; width: 100%; margin: 0 auto; }
 
-  #screen-login, #screen-pending, #screen-firstrun { align-items: center; justify-content: center; padding: 40px 24px; }
+  #screen-login, #screen-pending, #screen-firstrun, #screen-error { align-items: center; justify-content: center; padding: 40px 24px; }
   .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center; }
   .login-icon { font-size: 3rem; margin-bottom: 16px; }
   .login-card h1 { font-family: var(--font-head); font-weight: 800; font-size: 1.6rem; margin-bottom: 6px; }
@@ -190,6 +201,7 @@
   .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
 
   .pending-icon { font-size: 4rem; margin-bottom: 16px; }
+  .err-detail { background: var(--surface2); border-left: 3px solid var(--danger); padding: 12px; border-radius: 6px; font-size: .75rem; color: var(--text-dim); margin: 16px 0; text-align: left; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -211,6 +223,16 @@
       <button class="modal-btn cancel" onclick="closeConfirm()">Cancel</button>
       <button class="modal-btn confirm" id="confirm-ok-btn">Confirm</button>
     </div>
+  </div>
+</div>
+
+<!-- ERROR SCREEN -->
+<div class="screen" id="screen-error">
+  <div class="login-card">
+    <div class="login-icon">⚠️</div>
+    <h1>Something Went Wrong</h1>
+    <div class="err-detail" id="error-detail">Error message</div>
+    <button class="ms-btn" style="background:var(--accent);color:#000" onclick="location.reload()">↻ Reload App</button>
   </div>
 </div>
 
@@ -419,7 +441,6 @@
   </div>
 </div>
 
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <script>
 const ADMIN_EMAIL_DEFAULT = 'oskar@auhs.com.au';
 const CONFIG_FILE_PATH = 'Site Photos/sitelog-config.json';
@@ -520,6 +541,9 @@ function getMyAuthorisedJobs() {
 }
 
 function initMsal() {
+  if (typeof msal === 'undefined') {
+    return Promise.reject(new Error('MSAL library failed to load. Check your internet connection.'));
+  }
   const clientId = getClientId();
   if (!clientId) return Promise.resolve(false);
   msalInstance = new msal.PublicClientApplication({
@@ -530,11 +554,15 @@ function initMsal() {
     },
     cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
   });
-  return msalInstance.initialize().then(() => true);
+  // v2 doesn't require initialize() but it's safe to call
+  if (typeof msalInstance.initialize === 'function') {
+    return msalInstance.initialize().then(() => true);
+  }
+  return Promise.resolve(true);
 }
 
 async function checkExistingLogin() {
-  try { await msalInstance.handleRedirectPromise(); } catch(e) {}
+  try { await msalInstance.handleRedirectPromise(); } catch(e) { console.warn('Redirect promise:', e); }
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) { currentAccount = accounts[0]; return true; }
   return false;
@@ -551,8 +579,21 @@ async function getToken() {
   }
 }
 
-async function signIn() { await msalInstance.loginRedirect({ scopes: GRAPH_SCOPE }); }
-function signOut() { msalInstance.logoutRedirect(); }
+async function signIn() {
+  try {
+    await msalInstance.loginRedirect({ scopes: GRAPH_SCOPE });
+  } catch(e) {
+    showError('Sign-in failed: ' + e.message);
+  }
+}
+
+function signOut() {
+  try { msalInstance.logoutRedirect(); }
+  catch(e) {
+    localStorage.clear();
+    location.reload();
+  }
+}
 
 function saveFirstRun() {
   const cid = document.getElementById('firstrun-client-id').value.trim();
@@ -567,6 +608,12 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-jobs') renderJobs();
+}
+
+function showError(msg) {
+  hideLoader();
+  document.getElementById('error-detail').textContent = msg;
+  showScreen('screen-error');
 }
 
 function openSettings() { showScreen('screen-settings'); renderSettings(); }
@@ -1071,18 +1118,44 @@ function escHtml(s) {
 
 function setLoaderMsg(msg) { document.getElementById('loader-msg').textContent = msg; }
 function hideLoader() {
-  document.getElementById('loader').style.opacity = '0';
-  setTimeout(() => { document.getElementById('loader').style.display = 'none'; }, 400);
+  const l = document.getElementById('loader');
+  l.style.opacity = '0';
+  setTimeout(() => { l.style.display = 'none'; }, 400);
 }
 
 async function boot() {
-  if (!getClientId()) { hideLoader(); showScreen('screen-firstrun'); return; }
+  // Step 0: Verify MSAL loaded
+  if (typeof msal === 'undefined') {
+    showError('Microsoft sign-in library failed to load. Please check your internet connection and reload.');
+    return;
+  }
+
+  // Step 1: Need Client ID?
+  if (!getClientId()) {
+    hideLoader();
+    showScreen('screen-firstrun');
+    return;
+  }
+
   setLoaderMsg('Connecting to Microsoft...');
-  const ok = await initMsal();
-  if (!ok) { hideLoader(); showScreen('screen-firstrun'); return; }
-  const loggedIn = await checkExistingLogin();
+  try {
+    await initMsal();
+  } catch(e) {
+    showError(e.message);
+    return;
+  }
+
+  let loggedIn;
+  try {
+    loggedIn = await checkExistingLogin();
+  } catch(e) {
+    showError('Login check failed: ' + e.message);
+    return;
+  }
+
   if (!loggedIn) { hideLoader(); showScreen('screen-login'); return; }
-  setLoaderMsg('Loading config...');
+
+  setLoaderMsg('Loading config from OneDrive...');
   try {
     await getToken();
     if (!currentToken) return;
@@ -1099,13 +1172,12 @@ async function boot() {
     }
   } catch(e) {
     console.error(e);
-    hideLoader();
-    showToast('Startup error: ' + e.message, 'error');
-    showScreen('screen-login');
+    showError('Startup error: ' + e.message);
   }
 }
 
-boot();
+// Wait a moment for MSAL script to fully execute
+setTimeout(boot, 100);
 </script>
 </body>
 </html>
