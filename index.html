@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1f2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>SiteLog</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1f2e; --surface2: #222840; --border: #2e3558;
+    --accent: #f5a623; --accent2: #4fc3f7; --admin: #b066ff;
+    --text: #e8eaf0; --text-dim: #7b82a0;
+    --danger: #ff5c5c; --success: #4caf8a;
+    --radius: 12px;
+    --font-head: 'Syne', sans-serif; --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: var(--font-mono); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  #loader { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity .4s; }
+  #loader .logo { font-family: var(--font-head); font-size: 2rem; font-weight: 800; color: var(--accent); letter-spacing: -1px; }
+  #loader .sub { color: var(--text-dim); font-size: .75rem; margin-top: 6px; letter-spacing: 2px; text-transform: uppercase; }
+  #loader .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin-top: 32px; }
+  #loader .msg { color: var(--text-dim); font-size: .75rem; margin-top: 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .screen { display: none; min-height: 100vh; flex-direction: column; animation: fadeIn .3s ease; }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
+  .topbar .app-title { font-family: var(--font-head); font-weight: 800; font-size: 1.1rem; color: var(--accent); flex: 1; }
+  .topbar .back-btn { background: none; border: none; color: var(--text-dim); font-size: .8rem; cursor: pointer; padding: 4px 8px 4px 0; display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
+  .topbar .back-btn:hover { color: var(--text); }
+  .topbar .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); font-size: .9rem; }
+  .topbar .icon-btn:hover { border-color: var(--accent); }
+  .topbar .icon-btn.admin { border-color: var(--admin); color: var(--admin); }
+  .user-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: .72rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+  .user-pill .dot { width: 7px; height: 7px; background: var(--success); border-radius: 50%; }
+
+  .content { flex: 1; padding: 20px; max-width: 600px; width: 100%; margin: 0 auto; }
+
+  #screen-login, #screen-pending, #screen-firstrun { align-items: center; justify-content: center; padding: 40px 24px; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center; }
+  .login-icon { font-size: 3rem; margin-bottom: 16px; }
+  .login-card h1 { font-family: var(--font-head); font-weight: 800; font-size: 1.6rem; margin-bottom: 6px; }
+  .login-card p { color: var(--text-dim); font-size: .82rem; line-height: 1.6; margin-bottom: 32px; }
+  .ms-btn { background: #2f72c5; color: #fff; border: none; border-radius: 8px; padding: 14px 24px; font-family: var(--font-head); font-weight: 600; font-size: .95rem; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background .2s, transform .1s; }
+  .ms-btn:hover { background: #2563b0; }
+  .ms-btn:active { transform: scale(.98); }
+  .ms-logo { width: 20px; height: 20px; }
+
+  .section-label { font-size: .7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+  .job-grid { display: flex; flex-direction: column; gap: 10px; }
+  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; cursor: pointer; transition: border-color .2s, background .2s, transform .15s; display: flex; align-items: center; gap: 14px; }
+  .job-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .job-card:active { transform: scale(.98); }
+  .job-card .job-code { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; color: var(--accent); min-width: 80px; }
+  .job-card .job-info { flex: 1; }
+  .job-card .job-name { font-size: .9rem; color: var(--text); }
+  .job-card .job-path { font-size: .72rem; color: var(--text-dim); margin-top: 3px; }
+  .job-card .arrow { color: var(--text-dim); font-size: 1.1rem; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: .85rem; border: 2px dashed var(--border); border-radius: var(--radius); }
+  .empty-state .ico { font-size: 2.2rem; margin-bottom: 10px; }
+
+  .job-header { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
+  .job-header .badge { background: var(--accent); color: #000; border-radius: 6px; padding: 4px 10px; font-family: var(--font-head); font-weight: 700; font-size: .85rem; }
+  .job-header .jname { font-size: .9rem; color: var(--text-dim); }
+
+  .field-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+  .desc-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; color: var(--text); font-family: var(--font-mono); font-size: .9rem; resize: none; min-height: 80px; transition: border-color .2s; }
+  .desc-input:focus { outline: none; border-color: var(--accent2); }
+  .desc-input::placeholder { color: var(--text-dim); }
+
+  .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+  .photo-btn { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px 10px; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text); }
+  .photo-btn:hover { border-color: var(--accent); }
+  .photo-btn:active { transform: scale(.97); }
+  .photo-btn.primary { border-color: var(--accent); background: rgba(245,166,35,.08); }
+  .photo-btn .btn-icon { font-size: 1.8rem; }
+  .photo-btn .btn-label { font-size: .78rem; color: var(--text-dim); text-align: center; }
+  .photo-btn .btn-count { font-family: var(--font-head); font-weight: 700; font-size: .9rem; color: var(--accent); }
+  .photo-btn.disabled { opacity: .4; pointer-events: none; }
+
+  .thumb-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+  .thumb-wrap { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb-remove { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,.75); border: none; color: #fff; width: 20px; height: 20px; border-radius: 50%; font-size: .7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .thumb-empty { aspect-ratio: 1; border-radius: 8px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 1.2rem; }
+
+  .gps-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .gps-row .gps-icon { font-size: 1rem; }
+  .gps-row .gps-text { font-size: .75rem; color: var(--text-dim); flex: 1; }
+  .gps-toggle { position: relative; width: 38px; height: 22px; }
+  .gps-toggle input { opacity: 0; width: 0; height: 0; }
+  .gps-slider { position: absolute; inset: 0; background: var(--border); border-radius: 11px; cursor: pointer; transition: background .2s; }
+  .gps-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+  .gps-toggle input:checked + .gps-slider { background: var(--success); }
+  .gps-toggle input:checked + .gps-slider:before { transform: translateX(16px); }
+
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; padding-bottom: 32px; }
+  .btn { border: none; border-radius: var(--radius); padding: 16px; font-family: var(--font-head); font-weight: 700; font-size: .95rem; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-save { background: var(--accent); color: #000; }
+  .btn-save:hover { background: #e09510; }
+  .btn-save:disabled { background: var(--border); color: var(--text-dim); pointer-events: none; }
+  .btn-reset { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-reset:hover { border-color: var(--danger); color: var(--danger); }
+
+  .settings-section { margin-bottom: 28px; }
+  .settings-section h3 { font-family: var(--font-head); font-weight: 700; font-size: 1rem; margin-bottom: 14px; }
+  .settings-section h3.admin { color: var(--admin); }
+  .settings-section h3 .badge-admin { display: inline-block; background: var(--admin); color: #fff; font-size: .65rem; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; font-family: var(--font-mono); letter-spacing: 1px; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-family: var(--font-mono); font-size: .88rem; transition: border-color .2s; }
+  .form-input:focus { outline: none; border-color: var(--accent2); }
+
+  .save-settings-btn { background: var(--accent); color: #000; border: none; border-radius: var(--radius); padding: 16px; font-family: var(--font-head); font-weight: 700; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 10px; transition: background .2s; }
+  .save-settings-btn:hover { background: #e09510; }
+  .save-settings-btn.admin { background: var(--admin); color: #fff; }
+  .save-settings-btn.admin:hover { background: #9a4ee0; }
+
+  .info-box { background: var(--surface); border-left: 3px solid var(--accent2); border-radius: 6px; padding: 12px 14px; font-size: .8rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; }
+  .info-box strong { color: var(--text); }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  .admin-section { background: rgba(176,102,255,.06); border: 1px solid rgba(176,102,255,.3); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+
+  .mgr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+  .mgr-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .mgr-row .mgr-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: var(--font-head); font-weight: 700; }
+  .mgr-row .mgr-info { flex: 1; }
+  .mgr-row .mgr-name { font-size: .9rem; color: var(--text); }
+  .mgr-row .mgr-email { font-size: .72rem; color: var(--text-dim); word-break: break-all; }
+  .mgr-row .mgr-status { font-size: .65rem; padding: 3px 8px; border-radius: 10px; font-family: var(--font-head); font-weight: 600; white-space: nowrap; }
+  .mgr-row .mgr-status.active { background: rgba(76,175,138,.15); color: var(--success); }
+  .mgr-row .mgr-status.pending { background: rgba(245,166,35,.15); color: var(--accent); }
+
+  .job-checkboxes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .job-checkbox { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 16px; padding: 5px 12px; cursor: pointer; font-size: .75rem; color: var(--text-dim); transition: all .15s; }
+  .job-checkbox.active { background: rgba(245,166,35,.15); border-color: var(--accent); color: var(--accent); }
+  .job-checkbox input { display: none; }
+
+  .admin-job-list { display: flex; flex-direction: column; gap: 8px; }
+  .admin-job-row { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .admin-job-row .ajr-code { font-family: var(--font-head); font-weight: 700; color: var(--accent); min-width: 75px; font-size: .9rem; }
+  .admin-job-row .ajr-info { flex: 1; min-width: 100px; font-size: .75rem; color: var(--text-dim); word-break: break-all; }
+  .admin-job-row .ajr-actions { display: flex; gap: 6px; }
+  .admin-job-row.archived .ajr-code { color: var(--text-dim); }
+  .mini-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: .72rem; font-family: var(--font-mono); transition: all .15s; }
+  .mini-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .mini-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  .add-job-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .add-job-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface); padding: 4px; border-radius: 10px; }
+  .tab { flex: 1; padding: 10px; text-align: center; font-size: .8rem; cursor: pointer; border-radius: 7px; color: var(--text-dim); transition: all .15s; font-family: var(--font-head); font-weight: 600; }
+  .tab.active { background: var(--surface2); color: var(--text); }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: .85rem; color: var(--text); transition: transform .3s; z-index: 9999; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: var(--success); color: var(--success); }
+  #toast.error { border-color: var(--danger); color: var(--danger); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); align-items: center; justify-content: center; z-index: 500; padding: 24px; display: none; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 360px; text-align: center; }
+  .modal h3 { font-family: var(--font-head); font-weight: 700; margin-bottom: 10px; }
+  .modal p { color: var(--text-dim); font-size: .85rem; line-height: 1.6; margin-bottom: 24px; }
+  .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-btn { border: none; border-radius: 8px; padding: 12px; font-family: var(--font-head); font-weight: 600; cursor: pointer; font-size: .9rem; }
+  .modal-btn.confirm { background: var(--danger); color: #fff; }
+  .modal-btn.cancel { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+  .upload-progress { display: none; margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; gap: 10px; flex-direction: column; }
+  .upload-progress.visible { display: flex; }
+  .progress-bar-wrap { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; width: 0%; }
+  .progress-label { font-size: .78rem; color: var(--text-dim); }
+
+  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; color: var(--text-dim); font-family: var(--font-mono); font-size: .8rem; cursor: pointer; transition: all .2s; }
+  .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  .pending-icon { font-size: 4rem; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="logo">📸 SiteLog</div>
+  <div class="sub">Site Photo Logger</div>
+  <div class="spinner"></div>
+  <div class="msg" id="loader-msg">Initialising...</div>
+</div>
+
+<div id="toast"></div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-msg">Are you sure?</p>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="modal-btn confirm" id="confirm-ok-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIRST RUN -->
+<div class="screen" id="screen-firstrun">
+  <div class="login-card">
+    <div class="login-icon">⚙️</div>
+    <h1>First-Time Setup</h1>
+    <p>Enter your <strong>Azure Client ID</strong>. You only need to do this once on this device.</p>
+    <div style="text-align:left;margin-bottom:16px">
+      <label class="form-label">Azure Client ID</label>
+      <input type="text" class="form-input" id="firstrun-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+    </div>
+    <button class="ms-btn" style="background:var(--accent);color:#000" onclick="saveFirstRun()">Continue</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen" id="screen-login">
+  <div class="login-card">
+    <div class="login-icon">🏗️</div>
+    <h1>SiteLog</h1>
+    <p>Sign in with your Microsoft 365 account to continue.</p>
+    <button class="ms-btn" onclick="signIn()">
+      <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+      </svg>
+      Sign in with Microsoft
+    </button>
+  </div>
+</div>
+
+<!-- PENDING -->
+<div class="screen" id="screen-pending">
+  <div class="login-card">
+    <div class="pending-icon">⏳</div>
+    <h1>Awaiting Authorisation</h1>
+    <p>Hi <strong id="pending-name">there</strong>,<br><br>
+       Your account is registered but not yet assigned to any jobs.<br><br>
+       Please ask the admin (Oskar) to authorise you. Once done, refresh this app.</p>
+    <button class="ms-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="location.reload()">↻ Refresh</button>
+    <div style="margin-top:14px"><button class="logout-btn" onclick="signOut()">Sign Out</button></div>
+  </div>
+</div>
+
+<!-- JOB SELECT -->
+<div class="screen" id="screen-jobs">
+  <div class="topbar">
+    <div class="app-title">SiteLog</div>
+    <div class="user-pill"><span class="dot"></span><span id="user-name-pill">Manager</span></div>
+    <button class="icon-btn" id="settings-btn" onclick="openSettings()">⚙</button>
+  </div>
+  <div class="content">
+    <div class="section-label">Select Job Site</div>
+    <div class="job-grid" id="job-grid"></div>
+  </div>
+</div>
+
+<!-- PHOTO -->
+<div class="screen" id="screen-photo">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-jobs')">← Back</button>
+    <div class="app-title">Capture Photos</div>
+  </div>
+  <div class="content">
+    <div class="job-header">
+      <div class="badge" id="ph-job-code">2504 LF</div>
+      <div class="jname" id="ph-job-name">Job Name</div>
+    </div>
+    <div class="form-group">
+      <div class="field-label">Description</div>
+      <textarea class="desc-input" id="photo-desc" placeholder="e.g. Concrete Slab, Roof Frame, North Elevation..." rows="3"></textarea>
+    </div>
+    <div class="photo-actions">
+      <button class="photo-btn primary" id="btn-camera" onclick="triggerCamera()">
+        <span class="btn-icon">📷</span>
+        <span class="btn-label">Take Photo</span>
+        <span class="btn-count" id="camera-count">0 / 5</span>
+      </button>
+      <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
+        <span class="btn-icon">🖼️</span>
+        <span class="btn-label">From Gallery</span>
+        <span class="btn-count">Multi-select</span>
+      </button>
+    </div>
+    <input type="file" id="input-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFiles(this.files)">
+    <input type="file" id="input-gallery" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
+    <div class="field-label">Photos (<span id="photo-count">0</span> / 5)</div>
+    <div class="thumb-grid" id="thumb-grid"></div>
+    <div class="gps-row">
+      <span class="gps-icon">📍</span>
+      <div class="gps-text">
+        <div>GPS Stamp</div>
+        <div id="gps-status" style="font-size:.7rem;margin-top:2px;color:var(--text-dim)">Off</div>
+      </div>
+      <label class="gps-toggle">
+        <input type="checkbox" id="gps-toggle" onchange="toggleGPS(this.checked)">
+        <span class="gps-slider"></span>
+      </label>
+    </div>
+    <div class="upload-progress" id="upload-progress">
+      <div class="progress-label" id="progress-label">Uploading...</div>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+    </div>
+    <div class="action-row">
+      <button class="btn btn-reset" onclick="confirmDialog('Reset Session?', 'This will clear all photos and the description.', resetSession)">↺ Reset</button>
+      <button class="btn btn-save" id="btn-save" onclick="savePhotos()">↑ Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="screen-settings">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-jobs')">← Back</button>
+    <div class="app-title">Settings</div>
+  </div>
+  <div class="content">
+
+    <div class="settings-section">
+      <h3>Your Profile</h3>
+      <div class="form-group">
+        <label class="form-label">Manager Name <span style="color:var(--text-dim)">(used in filenames)</span></label>
+        <input type="text" class="form-input" id="setting-manager-name" placeholder="e.g. John Smith">
+      </div>
+      <button class="save-settings-btn" onclick="saveProfile()">Save Profile</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="settings-section">
+      <h3>Account</h3>
+      <div class="info-box">
+        Signed in as <strong id="account-email">—</strong><br>
+        Authorised for <strong id="account-job-count">0</strong> job(s)
+      </div>
+      <button class="logout-btn" onclick="signOut()">Sign Out</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="admin-panel" style="display:none">
+      <div class="settings-section">
+        <h3 class="admin">🛡 Admin Panel <span class="badge-admin">ADMIN</span></h3>
+        <div class="info-box">
+          Welcome <strong id="admin-name">Oskar</strong>. Changes here affect all managers.<br>
+          Config syncs via OneDrive: <strong>Site Photos/sitelog-config.json</strong>
+        </div>
+        <div class="tabs">
+          <div class="tab active" data-tab="jobs" onclick="switchAdminTab('jobs', this)">Jobs</div>
+          <div class="tab" data-tab="managers" onclick="switchAdminTab('managers', this)">Managers</div>
+          <div class="tab" data-tab="config" onclick="switchAdminTab('config', this)">Config</div>
+        </div>
+
+        <div id="admin-tab-jobs" class="admin-tab-content">
+          <div class="admin-section">
+            <h3 style="font-size:.9rem">Create New Job</h3>
+            <div class="add-job-form">
+              <div class="form-row">
+                <div>
+                  <label class="form-label">Job Code</label>
+                  <input type="text" class="form-input" id="new-job-code" placeholder="2504 LF">
+                </div>
+                <div>
+                  <label class="form-label">Display Name</label>
+                  <input type="text" class="form-input" id="new-job-name" placeholder="Optional">
+                </div>
+              </div>
+              <button class="save-settings-btn admin" onclick="createNewJob()">+ Create Job &amp; Folder</button>
+            </div>
+          </div>
+          <div class="section-label">Active Jobs</div>
+          <div class="admin-job-list" id="admin-active-jobs"></div>
+          <div class="section-label" style="margin-top:24px">Archived Jobs</div>
+          <div class="admin-job-list" id="admin-archived-jobs"></div>
+        </div>
+
+        <div id="admin-tab-managers" class="admin-tab-content" style="display:none">
+          <div class="info-box">
+            Managers appear here when they first sign in. Tap their job tags to authorise/de-authorise.
+          </div>
+          <div id="admin-managers-list"></div>
+        </div>
+
+        <div id="admin-tab-config" class="admin-tab-content" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Azure Client ID</label>
+            <input type="text" class="form-input" id="setting-client-id">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admin Email</label>
+            <input type="text" class="form-input" id="setting-admin-email">
+          </div>
+          <button class="save-settings-btn admin" onclick="saveAdminConfig()">Save Config</button>
+          <div class="info-box" style="margin-top:14px">
+            <strong>Note:</strong> Changing Client ID requires a page refresh.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:60px"></div>
+  </div>
+</div>
+
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script>
+const ADMIN_EMAIL_DEFAULT = 'oskar@auhs.com.au';
+const CONFIG_FILE_PATH = 'Site Photos/sitelog-config.json';
+const ARCHIVE_FOLDER = 'Site Photos/Archived';
+const GRAPH_SCOPE = ['Files.ReadWrite.All', 'User.Read'];
+
+let msalInstance = null;
+let currentAccount = null;
+let currentJob = null;
+let currentToken = null;
+let cloudConfig = null;
+let photos = [];
+let gpsEnabled = false;
+let gpsCoords = null;
+let isAdmin = false;
+
+function loadLocal() { return JSON.parse(localStorage.getItem('sitelog_local') || '{}'); }
+function saveLocal(d) { localStorage.setItem('sitelog_local', JSON.stringify(d)); }
+function getClientId() { return loadLocal().clientId || ''; }
+function getAdminEmail() { return (cloudConfig?.adminEmail || ADMIN_EMAIL_DEFAULT).toLowerCase(); }
+function getMyName() {
+  const local = loadLocal();
+  if (local.managerName) return local.managerName;
+  return currentAccount?.name || 'Manager';
+}
+
+function defaultConfig() {
+  return {
+    version: 1,
+    adminEmail: ADMIN_EMAIL_DEFAULT,
+    jobs: [
+      { id: genId(), code: '2504 LF', name: '2504 LF', archived: false },
+      { id: genId(), code: '2602 CDL', name: '2602 CDL', archived: false },
+      { id: genId(), code: '8808 WW', name: '8808 WW', archived: false },
+    ],
+    managers: {}
+  };
+}
+
+function genId() { return 'j_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+async function loadCloudConfig() {
+  try {
+    const base = 'https://graph.microsoft.com/v1.0/me/drive';
+    const res = await fetch(`${base}/root:/${encodeURIPath(CONFIG_FILE_PATH)}:/content`, {
+      headers: { Authorization: 'Bearer ' + currentToken }
+    });
+    if (res.status === 404) {
+      cloudConfig = defaultConfig();
+      await saveCloudConfig();
+      return;
+    }
+    if (!res.ok) throw new Error('Config load failed: ' + res.status);
+    cloudConfig = await res.json();
+    if (!cloudConfig.adminEmail) cloudConfig.adminEmail = ADMIN_EMAIL_DEFAULT;
+    if (!cloudConfig.managers) cloudConfig.managers = {};
+    if (!cloudConfig.jobs) cloudConfig.jobs = [];
+  } catch (e) {
+    console.error('Config error:', e);
+    cloudConfig = defaultConfig();
+  }
+}
+
+async function saveCloudConfig() {
+  await ensureFolder('Site Photos');
+  const base = 'https://graph.microsoft.com/v1.0/me/drive';
+  const res = await fetch(`${base}/root:/${encodeURIPath(CONFIG_FILE_PATH)}:/content`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cloudConfig, null, 2)
+  });
+  if (!res.ok) throw new Error('Save config failed: ' + res.status);
+}
+
+async function registerManagerIfNew() {
+  const email = currentAccount.username.toLowerCase();
+  const isAdminUser = email === getAdminEmail();
+  if (!cloudConfig.managers[email]) {
+    cloudConfig.managers[email] = {
+      name: currentAccount.name,
+      jobIds: isAdminUser ? cloudConfig.jobs.filter(j=>!j.archived).map(j=>j.id) : [],
+      firstSeen: new Date().toISOString(),
+      lastSeen: new Date().toISOString()
+    };
+    try { await saveCloudConfig(); } catch(e) { console.warn('Could not register manager:', e); }
+  } else {
+    cloudConfig.managers[email].lastSeen = new Date().toISOString();
+    cloudConfig.managers[email].name = currentAccount.name;
+  }
+}
+
+function getMyAuthorisedJobs() {
+  const email = currentAccount.username.toLowerCase();
+  if (email === getAdminEmail()) return cloudConfig.jobs.filter(j => !j.archived);
+  const mgr = cloudConfig.managers[email];
+  if (!mgr) return [];
+  return cloudConfig.jobs.filter(j => !j.archived && mgr.jobIds.includes(j.id));
+}
+
+function initMsal() {
+  const clientId = getClientId();
+  if (!clientId) return Promise.resolve(false);
+  msalInstance = new msal.PublicClientApplication({
+    auth: {
+      clientId,
+      authority: 'https://login.microsoftonline.com/common',
+      redirectUri: window.location.origin + window.location.pathname,
+    },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
+  });
+  return msalInstance.initialize().then(() => true);
+}
+
+async function checkExistingLogin() {
+  try { await msalInstance.handleRedirectPromise(); } catch(e) {}
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) { currentAccount = accounts[0]; return true; }
+  return false;
+}
+
+async function getToken() {
+  try {
+    const result = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPE, account: currentAccount });
+    currentToken = result.accessToken;
+    return result.accessToken;
+  } catch(e) {
+    await msalInstance.acquireTokenRedirect({ scopes: GRAPH_SCOPE });
+    return null;
+  }
+}
+
+async function signIn() { await msalInstance.loginRedirect({ scopes: GRAPH_SCOPE }); }
+function signOut() { msalInstance.logoutRedirect(); }
+
+function saveFirstRun() {
+  const cid = document.getElementById('firstrun-client-id').value.trim();
+  if (!cid) { showToast('Please enter the Client ID', 'error'); return; }
+  const local = loadLocal();
+  local.clientId = cid;
+  saveLocal(local);
+  location.reload();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screen-jobs') renderJobs();
+}
+
+function openSettings() { showScreen('screen-settings'); renderSettings(); }
+
+function renderJobs() {
+  const jobs = getMyAuthorisedJobs();
+  const grid = document.getElementById('job-grid');
+  document.getElementById('user-name-pill').textContent = getMyName();
+  const sBtn = document.getElementById('settings-btn');
+  if (isAdmin) { sBtn.classList.add('admin'); sBtn.textContent = '🛡'; }
+  else { sBtn.classList.remove('admin'); sBtn.textContent = '⚙'; }
+  if (jobs.length === 0) {
+    grid.innerHTML = `<div class="empty-state"><div class="ico">📋</div>No jobs assigned to you yet.<br>${isAdmin ? 'Create one in Admin → Jobs.' : 'Contact your admin to be authorised.'}</div>`;
+    return;
+  }
+  grid.innerHTML = jobs.map(j => `
+    <div class="job-card" onclick="selectJob('${j.id}')">
+      <div class="job-code">${escHtml(j.code)}</div>
+      <div class="job-info">
+        <div class="job-name">${escHtml(j.name || j.code)}</div>
+        <div class="job-path">📁 Site Photos/${escHtml(j.code)}</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+  `).join('');
+}
+
+function selectJob(id) {
+  currentJob = cloudConfig.jobs.find(j => j.id === id);
+  if (!currentJob) return;
+  document.getElementById('ph-job-code').textContent = currentJob.code;
+  document.getElementById('ph-job-name').textContent = currentJob.name || currentJob.code;
+  resetSessionSilent();
+  showScreen('screen-photo');
+}
+
+function triggerCamera() {
+  if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
+  document.getElementById('input-camera').click();
+}
+function triggerGallery() {
+  if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
+  document.getElementById('input-gallery').click();
+}
+
+async function handleFiles(files) {
+  const remaining = 5 - photos.length;
+  const toProcess = Array.from(files).slice(0, remaining);
+  if (files.length > remaining) showToast(`Only ${remaining} slot(s) left`, 'error');
+  for (const file of toProcess) {
+    let blob = file;
+    if (gpsEnabled && gpsCoords) blob = await stampGPS(file, gpsCoords);
+    photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name });
+  }
+  renderThumbs();
+  document.getElementById('input-camera').value = '';
+  document.getElementById('input-gallery').value = '';
+}
+
+function removePhoto(idx) {
+  URL.revokeObjectURL(photos[idx].url);
+  photos.splice(idx, 1);
+  renderThumbs();
+}
+
+function renderThumbs() {
+  const grid = document.getElementById('thumb-grid');
+  document.getElementById('photo-count').textContent = photos.length;
+  document.getElementById('camera-count').textContent = photos.length + ' / 5';
+  const max = photos.length >= 5;
+  document.getElementById('btn-camera').classList.toggle('disabled', max);
+  document.getElementById('btn-gallery').classList.toggle('disabled', max);
+  let html = photos.map((p, i) => `
+    <div class="thumb-wrap"><img src="${p.url}" alt=""><button class="thumb-remove" onclick="removePhoto(${i})">✕</button></div>
+  `).join('');
+  for (let i = photos.length; i < 5; i++) html += `<div class="thumb-empty">+</div>`;
+  grid.innerHTML = html;
+  document.getElementById('btn-save').disabled = photos.length === 0;
+}
+
+function toggleGPS(en) {
+  gpsEnabled = en;
+  if (en) {
+    document.getElementById('gps-status').textContent = 'Requesting...';
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        gpsCoords = pos.coords;
+        document.getElementById('gps-status').textContent = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+        showToast('📍 GPS acquired', 'success');
+      },
+      err => {
+        gpsEnabled = false;
+        document.getElementById('gps-toggle').checked = false;
+        document.getElementById('gps-status').textContent = 'Permission denied';
+        showToast('GPS denied', 'error');
+      }
+    );
+  } else {
+    gpsCoords = null;
+    document.getElementById('gps-status').textContent = 'Off';
+  }
+}
+
+async function stampGPS(file, coords) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const stamp = `📍 ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}  |  ${new Date().toLocaleString()}`;
+      const fontSize = Math.max(24, Math.round(img.width * 0.025));
+      ctx.font = `bold ${fontSize}px monospace`;
+      const padding = 16;
+      const textW = ctx.measureText(stamp).width;
+      const boxH = fontSize + padding * 2;
+      const boxY = img.height - boxH - 20;
+      const boxX = 20;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(boxX, boxY, textW + padding*2, boxH, 8); ctx.fill(); }
+      else { ctx.fillRect(boxX, boxY, textW + padding*2, boxH); }
+      ctx.fillStyle = '#fff';
+      ctx.fillText(stamp, boxX + padding, boxY + boxH - padding - 2);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(b => resolve(b), file.type || 'image/jpeg', 0.92);
+    };
+    img.src = url;
+  });
+}
+
+async function savePhotos() {
+  if (!photos.length) return;
+  const desc = document.getElementById('photo-desc').value.trim();
+  if (!desc) { showToast('Please enter a description', 'error'); return; }
+  await getToken();
+  const manager = getMyName();
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}_${String(now.getMonth()+1).padStart(2,'0')}_${String(now.getDate()).padStart(2,'0')}`;
+  const folderPath = `Site Photos/${currentJob.code}`;
+
+  const progress = document.getElementById('upload-progress');
+  const bar = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  progress.classList.add('visible');
+
+  try { await ensureFolder(folderPath); }
+  catch(e) { showToast('Folder error: ' + e.message, 'error'); progress.classList.remove('visible'); return; }
+
+  let success = 0;
+  for (let i = 0; i < photos.length; i++) {
+    const p = photos[i];
+    const ext = p.originalName ? (p.originalName.split('.').pop() || 'jpg') : 'jpg';
+    const suffix = photos.length > 1 ? ` (${i+1})` : '';
+    const filename = `${desc}_${dateStr} by ${manager}${suffix}.${ext}`;
+    label.textContent = `Uploading ${i+1} of ${photos.length}: ${filename}`;
+    bar.style.width = ((i / photos.length) * 100) + '%';
+    try { await uploadFile(folderPath, filename, p.blob); success++; }
+    catch(e) { showToast(`Upload ${i+1} failed: ${e.message}`, 'error'); }
+  }
+  bar.style.width = '100%';
+  label.textContent = `Done! ${success} of ${photos.length} uploaded.`;
+  setTimeout(() => {
+    progress.classList.remove('visible');
+    if (success === photos.length) {
+      showToast(`✅ ${success} photo(s) saved`, 'success');
+      resetSessionSilent();
+    }
+  }, 1500);
+}
+
+async function ensureFolder(folderPath) {
+  const parts = folderPath.split('/').filter(Boolean);
+  let current = '';
+  const base = 'https://graph.microsoft.com/v1.0/me/drive';
+  for (const part of parts) {
+    current = current ? current + '/' + part : part;
+    const check = await fetch(`${base}/root:/${encodeURIPath(current)}`, {
+      headers: { Authorization: 'Bearer ' + currentToken }
+    });
+    if (check.ok) continue;
+    const parent = current.includes('/')
+      ? `${base}/root:/${encodeURIPath(current.substring(0, current.lastIndexOf('/')))}`
+      : `${base}/root`;
+    await fetch(`${parent}/children`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: part, folder: {}, '@microsoft.graph.conflictBehavior': 'ignore' })
+    });
+  }
+}
+
+async function uploadFile(folderPath, filename, blob) {
+  const base = 'https://graph.microsoft.com/v1.0/me/drive';
+  const url = `${base}/root:/${encodeURIPath(folderPath + '/' + filename)}:/content`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': blob.type || 'image/jpeg' },
+    body: blob
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+}
+
+async function moveFolder(srcPath, destParentPath) {
+  const base = 'https://graph.microsoft.com/v1.0/me/drive';
+  await ensureFolder(destParentPath);
+  const r = await fetch(`${base}/root:/${encodeURIPath(srcPath)}`, {
+    headers: { Authorization: 'Bearer ' + currentToken }
+  });
+  if (!r.ok) {
+    if (r.status === 404) return false;
+    throw new Error('Cannot find folder');
+  }
+  const item = await r.json();
+  const pr = await fetch(`${base}/root:/${encodeURIPath(destParentPath)}`, {
+    headers: { Authorization: 'Bearer ' + currentToken }
+  });
+  if (!pr.ok) throw new Error('Cannot find destination');
+  const parent = await pr.json();
+  const mv = await fetch(`${base}/items/${item.id}`, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parentReference: { id: parent.id } })
+  });
+  if (!mv.ok) {
+    const err = await mv.json().catch(()=>({}));
+    throw new Error(err.error?.message || 'Move failed');
+  }
+  return true;
+}
+
+function encodeURIPath(p) { return p.split('/').map(s => encodeURIComponent(s)).join('/'); }
+
+function resetSession() { resetSessionSilent(); showToast('Session reset', ''); }
+function resetSessionSilent() {
+  photos.forEach(p => URL.revokeObjectURL(p.url));
+  photos = [];
+  const dEl = document.getElementById('photo-desc'); if (dEl) dEl.value = '';
+  const gEl = document.getElementById('gps-toggle'); if (gEl) gEl.checked = false;
+  gpsEnabled = false; gpsCoords = null;
+  const gs = document.getElementById('gps-status'); if (gs) gs.textContent = 'Off';
+  const up = document.getElementById('upload-progress'); if (up) up.classList.remove('visible');
+  renderThumbs();
+}
+
+let confirmCb = null;
+function confirmDialog(title, msg, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  confirmCb = cb;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirmModal').classList.remove('open'); confirmCb = null; }
+document.getElementById('confirm-ok-btn').addEventListener('click', () => {
+  const cb = confirmCb;
+  closeConfirm();
+  if (cb) cb();
+});
+
+function renderSettings() {
+  document.getElementById('setting-manager-name').value = getMyName();
+  document.getElementById('account-email').textContent = currentAccount?.username || '—';
+  document.getElementById('account-job-count').textContent = getMyAuthorisedJobs().length;
+  if (isAdmin) {
+    document.getElementById('admin-panel').style.display = 'block';
+    document.getElementById('admin-name').textContent = currentAccount.name;
+    document.getElementById('setting-client-id').value = getClientId();
+    document.getElementById('setting-admin-email').value = getAdminEmail();
+    renderAdminJobs();
+    renderAdminManagers();
+  } else {
+    document.getElementById('admin-panel').style.display = 'none';
+  }
+}
+
+function saveProfile() {
+  const name = document.getElementById('setting-manager-name').value.trim();
+  const local = loadLocal();
+  local.managerName = name;
+  saveLocal(local);
+  showToast('✅ Profile saved', 'success');
+  renderJobs();
+}
+
+function switchAdminTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById('admin-tab-' + tab).style.display = 'block';
+}
+
+function renderAdminJobs() {
+  const active = cloudConfig.jobs.filter(j => !j.archived);
+  const archived = cloudConfig.jobs.filter(j => j.archived);
+  const aEl = document.getElementById('admin-active-jobs');
+  if (active.length === 0) {
+    aEl.innerHTML = `<div class="empty-state" style="padding:20px"><div class="ico">📋</div>No active jobs</div>`;
+  } else {
+    aEl.innerHTML = active.map(j => `
+      <div class="admin-job-row">
+        <div class="ajr-code">${escHtml(j.code)}</div>
+        <div class="ajr-info">📁 Site Photos/${escHtml(j.code)}</div>
+        <div class="ajr-actions">
+          <button class="mini-btn" onclick="renameJob('${j.id}')">Rename</button>
+          <button class="mini-btn danger" onclick="archiveJob('${j.id}')">Archive</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  const arEl = document.getElementById('admin-archived-jobs');
+  if (archived.length === 0) {
+    arEl.innerHTML = `<div class="empty-state" style="padding:20px"><div class="ico">📦</div>No archived jobs</div>`;
+  } else {
+    arEl.innerHTML = archived.map(j => `
+      <div class="admin-job-row archived">
+        <div class="ajr-code">${escHtml(j.code)}</div>
+        <div class="ajr-info">📦 Archived/${escHtml(j.code)}</div>
+        <div class="ajr-actions">
+          <button class="mini-btn" onclick="restoreJob('${j.id}')">Restore</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+async function createNewJob() {
+  const code = document.getElementById('new-job-code').value.trim();
+  const name = document.getElementById('new-job-name').value.trim() || code;
+  if (!code) { showToast('Enter job code', 'error'); return; }
+  if (cloudConfig.jobs.some(j => j.code.toLowerCase() === code.toLowerCase())) {
+    showToast('Job code already exists', 'error'); return;
+  }
+  showToast('Creating folder...', '');
+  await getToken();
+  try {
+    await ensureFolder('Site Photos/' + code);
+    const newJob = { id: genId(), code, name, archived: false };
+    cloudConfig.jobs.push(newJob);
+    const adminEmail = getAdminEmail();
+    if (cloudConfig.managers[adminEmail]) {
+      cloudConfig.managers[adminEmail].jobIds.push(newJob.id);
+    }
+    await saveCloudConfig();
+    document.getElementById('new-job-code').value = '';
+    document.getElementById('new-job-name').value = '';
+    renderAdminJobs();
+    renderAdminManagers();
+    showToast(`✅ Job "${code}" created`, 'success');
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  }
+}
+
+function renameJob(id) {
+  const job = cloudConfig.jobs.find(j => j.id === id);
+  if (!job) return;
+  const newName = prompt('Display name (folder name in OneDrive will not change):', job.name || job.code);
+  if (newName === null) return;
+  job.name = newName.trim() || job.code;
+  saveCloudConfig().then(() => { renderAdminJobs(); showToast('✅ Renamed', 'success'); });
+}
+
+function archiveJob(id) {
+  const job = cloudConfig.jobs.find(j => j.id === id);
+  if (!job) return;
+  confirmDialog(
+    `Archive ${job.code}?`,
+    `Folder will move to "Site Photos/Archived/" and all managers will lose access. Existing photos are preserved.`,
+    async () => {
+      showToast('Archiving...', '');
+      await getToken();
+      try { await moveFolder('Site Photos/' + job.code, ARCHIVE_FOLDER); }
+      catch(e) { showToast('Move warning: ' + e.message, 'error'); }
+      job.archived = true;
+      Object.values(cloudConfig.managers).forEach(m => {
+        m.jobIds = m.jobIds.filter(jid => jid !== id);
+      });
+      await saveCloudConfig();
+      renderAdminJobs();
+      renderAdminManagers();
+      showToast('✅ Archived', 'success');
+    }
+  );
+}
+
+function restoreJob(id) {
+  const job = cloudConfig.jobs.find(j => j.id === id);
+  if (!job) return;
+  confirmDialog(
+    `Restore ${job.code}?`,
+    `Folder moves back to "Site Photos/${job.code}". You'll need to re-authorise managers.`,
+    async () => {
+      showToast('Restoring...', '');
+      await getToken();
+      try { await moveFolder(`${ARCHIVE_FOLDER}/${job.code}`, 'Site Photos'); }
+      catch(e) { showToast('Move warning: ' + e.message, 'error'); }
+      job.archived = false;
+      const adminEmail = getAdminEmail();
+      if (cloudConfig.managers[adminEmail] && !cloudConfig.managers[adminEmail].jobIds.includes(id)) {
+        cloudConfig.managers[adminEmail].jobIds.push(id);
+      }
+      await saveCloudConfig();
+      renderAdminJobs();
+      renderAdminManagers();
+      showToast('✅ Restored', 'success');
+    }
+  );
+}
+
+function renderAdminManagers() {
+  const list = document.getElementById('admin-managers-list');
+  const emails = Object.keys(cloudConfig.managers);
+  if (emails.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="ico">👥</div>No managers yet.<br>They'll appear when they first sign in.</div>`;
+    return;
+  }
+  const activeJobs = cloudConfig.jobs.filter(j => !j.archived);
+  list.innerHTML = emails.map(email => {
+    const m = cloudConfig.managers[email];
+    const initials = (m.name || email).split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+    const isAdminMgr = email === getAdminEmail();
+    const statusLabel = isAdminMgr ? 'ADMIN' : (m.jobIds.length > 0 ? 'AUTHORISED' : 'PENDING');
+    const statusClass = isAdminMgr ? 'active' : (m.jobIds.length > 0 ? 'active' : 'pending');
+    return `
+      <div class="mgr-card">
+        <div class="mgr-row">
+          <div class="mgr-icon">${escHtml(initials)}</div>
+          <div class="mgr-info">
+            <div class="mgr-name">${escHtml(m.name || '?')}</div>
+            <div class="mgr-email">${escHtml(email)}</div>
+          </div>
+          <div class="mgr-status ${statusClass}">${statusLabel}</div>
+        </div>
+        ${isAdminMgr ? '<div style="font-size:.75rem;color:var(--text-dim)">Admin has access to all active jobs automatically</div>'
+        : `<div class="job-checkboxes">
+            ${activeJobs.map(j => `
+              <label class="job-checkbox ${m.jobIds.includes(j.id) ? 'active' : ''}">
+                <input type="checkbox" ${m.jobIds.includes(j.id) ? 'checked' : ''} onchange="toggleAuth('${email}', '${j.id}', this.checked)">
+                ${escHtml(j.code)}
+              </label>
+            `).join('')}
+          </div>
+          <div style="margin-top:10px"><button class="mini-btn danger" onclick="removeManager('${email}')">Remove Manager</button></div>`}
+      </div>
+    `;
+  }).join('');
+}
+
+async function toggleAuth(email, jobId, checked) {
+  const m = cloudConfig.managers[email];
+  if (!m) return;
+  if (checked) { if (!m.jobIds.includes(jobId)) m.jobIds.push(jobId); }
+  else { m.jobIds = m.jobIds.filter(id => id !== jobId); }
+  try { await saveCloudConfig(); renderAdminManagers(); }
+  catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+function removeManager(email) {
+  confirmDialog(
+    'Remove Manager?',
+    `Remove ${email} from the system. They can re-register by signing in again.`,
+    async () => {
+      delete cloudConfig.managers[email];
+      await saveCloudConfig();
+      renderAdminManagers();
+      showToast('✅ Manager removed', 'success');
+    }
+  );
+}
+
+async function saveAdminConfig() {
+  const cid = document.getElementById('setting-client-id').value.trim();
+  const ae = document.getElementById('setting-admin-email').value.trim().toLowerCase();
+  const local = loadLocal();
+  local.clientId = cid;
+  saveLocal(local);
+  cloudConfig.adminEmail = ae;
+  try {
+    await saveCloudConfig();
+    showToast('✅ Config saved', 'success');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+let toastTimer = null;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3500);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setLoaderMsg(msg) { document.getElementById('loader-msg').textContent = msg; }
+function hideLoader() {
+  document.getElementById('loader').style.opacity = '0';
+  setTimeout(() => { document.getElementById('loader').style.display = 'none'; }, 400);
+}
+
+async function boot() {
+  if (!getClientId()) { hideLoader(); showScreen('screen-firstrun'); return; }
+  setLoaderMsg('Connecting to Microsoft...');
+  const ok = await initMsal();
+  if (!ok) { hideLoader(); showScreen('screen-firstrun'); return; }
+  const loggedIn = await checkExistingLogin();
+  if (!loggedIn) { hideLoader(); showScreen('screen-login'); return; }
+  setLoaderMsg('Loading config...');
+  try {
+    await getToken();
+    if (!currentToken) return;
+    await loadCloudConfig();
+    await registerManagerIfNew();
+    isAdmin = currentAccount.username.toLowerCase() === getAdminEmail();
+    const myJobs = getMyAuthorisedJobs();
+    hideLoader();
+    if (myJobs.length === 0 && !isAdmin) {
+      document.getElementById('pending-name').textContent = currentAccount.name;
+      showScreen('screen-pending');
+    } else {
+      showScreen('screen-jobs');
+    }
+  } catch(e) {
+    console.error(e);
+    hideLoader();
+    showToast('Startup error: ' + e.message, 'error');
+    showScreen('screen-login');
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
