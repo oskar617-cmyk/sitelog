@@ -1,10 +1,10 @@
 {
   "name": "SiteLog - Site Photo Logger",
   "short_name": "SiteLog",
-  "description": "Site photo logging app with OneDrive upload",
+  "description": "Site photo logging app with SharePoint upload",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f1117",
-  "theme_color": "#1a1f2e",
+  "theme_color": "#0f6334",
   "orientation": "portrait"
 }
