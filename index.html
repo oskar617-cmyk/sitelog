@@ -120,15 +120,16 @@
   .job-header .jname { font-size: .9rem; color: var(--text-dim); }
 
   .field-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
-  .desc-wrap { position: relative; }
-  .desc-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 60px 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 80px; transition: border-color .2s; }
+  .desc-wrap { display: flex; gap: 10px; align-items: stretch; }
+  .desc-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 88px; transition: border-color .2s; }
   .desc-input:focus { outline: none; border-color: var(--accent2); }
   .desc-input::placeholder { color: var(--text-dim); }
   .mic-btn {
-    position: absolute; top: 10px; right: 10px;
-    width: 44px; height: 44px; border-radius: 50%;
+    flex-shrink: 0;
+    width: 64px; min-height: 88px;
+    border-radius: var(--radius);
     background: var(--accent); border: none; color: #fff;
-    font-size: 1.25rem; cursor: pointer;
+    font-size: 1.6rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: transform .1s, background .2s, box-shadow .2s;
     box-shadow: 0 2px 8px rgba(15,99,52,.4);
@@ -136,8 +137,9 @@
     touch-action: manipulation;
   }
   .mic-btn:hover { background: var(--accent-light); }
-  .mic-btn:active, .mic-btn.recording { background: var(--danger); transform: scale(1.08); box-shadow: 0 0 0 6px rgba(255,92,92,.25); }
+  .mic-btn:active, .mic-btn.recording { background: var(--danger); transform: scale(1.05); box-shadow: 0 0 0 6px rgba(255,92,92,.25); }
   .mic-btn.recording { animation: micPulse 1.2s ease-in-out infinite; }
+  .mic-btn.unsupported { background: var(--surface2); color: var(--text-dim); cursor: not-allowed; box-shadow: none; }
   @keyframes micPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(255,92,92,.45); }
     50%      { box-shadow: 0 0 0 12px rgba(255,92,92,0); }
@@ -1712,9 +1714,12 @@ function stopVoice(commit = true) {
 (function setupMic() {
   const btn = document.getElementById('mic-btn');
   if (!btn) return;
-  // Hide entirely if browser has no Speech API
-  if (!getSpeechRecognition()) {
-    btn.style.display = 'none';
+  const supported = !!getSpeechRecognition();
+  if (!supported) {
+    btn.classList.add('unsupported');
+    btn.addEventListener('click', () => {
+      showToast('Voice Input Not Supported On This Browser', 'error');
+    });
     return;
   }
   // Touch
