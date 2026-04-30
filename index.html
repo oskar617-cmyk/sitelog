@@ -121,23 +121,25 @@
 
   .field-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
   .desc-wrap { display: flex; gap: 10px; align-items: stretch; }
-  .desc-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 88px; transition: border-color .2s; }
+  .desc-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 100px; transition: border-color .2s; }
   .desc-input:focus { outline: none; border-color: var(--accent2); }
   .desc-input::placeholder { color: var(--text-dim); }
   .mic-btn {
     flex-shrink: 0;
-    width: 64px; min-height: 88px;
+    width: 84px; min-height: 100px;
     border-radius: var(--radius);
     background: var(--accent); border: none; color: #fff;
-    font-size: 1.6rem; cursor: pointer;
+    cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: transform .1s, background .2s, box-shadow .2s;
     box-shadow: 0 2px 8px rgba(15,99,52,.4);
     user-select: none; -webkit-user-select: none;
     touch-action: manipulation;
+    padding: 0;
   }
+  .mic-btn svg { width: 40px; height: 40px; }
   .mic-btn:hover { background: var(--accent-light); }
-  .mic-btn:active, .mic-btn.recording { background: var(--danger); transform: scale(1.05); box-shadow: 0 0 0 6px rgba(255,92,92,.25); }
+  .mic-btn:active, .mic-btn.recording { background: var(--danger); transform: scale(1.04); box-shadow: 0 0 0 6px rgba(255,92,92,.25); }
   .mic-btn.recording { animation: micPulse 1.2s ease-in-out infinite; }
   .mic-btn.unsupported { background: var(--surface2); color: var(--text-dim); cursor: not-allowed; box-shadow: none; }
   @keyframes micPulse {
@@ -462,7 +464,12 @@
       <div class="desc-wrap">
         <textarea class="desc-input" id="photo-desc" placeholder="e.g. Slab, Framing, Joinery..." rows="3"></textarea>
         <button class="mic-btn" id="mic-btn" aria-label="Voice input">
-          <span class="mic-icon">🎤</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 11a7 7 0 0 0 14 0"/>
+            <line x1="12" y1="18" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
         </button>
       </div>
       <div class="mic-status" id="mic-status"></div>
