@@ -49,8 +49,6 @@
 
   .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
   .topbar .app-title { font-weight: 800; font-size: 1.1rem; color: var(--accent); flex: 1; }
-  .topbar .back-btn { background: none; border: none; color: var(--text-dim); font-size: .8rem; cursor: pointer; padding: 4px 8px 4px 0; display: flex; align-items: center; gap: 6px; }
-  .topbar .back-btn:hover { color: var(--text); }
   .topbar .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); font-size: .9rem; }
   .topbar .icon-btn:hover { border-color: var(--accent); }
   .topbar .icon-btn.admin { border-color: var(--admin); color: var(--admin); }
@@ -496,8 +494,8 @@
 <!-- SETTINGS -->
 <div class="screen" id="screen-settings">
   <div class="topbar">
-    <button class="back-btn" onclick="showScreen('screen-jobs')">← Back</button>
     <div class="app-title">Settings</div>
+    <button class="round-back" onclick="showScreen('screen-jobs')" aria-label="Back">←</button>
   </div>
   <div class="content">
 
