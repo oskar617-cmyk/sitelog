@@ -425,12 +425,12 @@
 <div class="screen" id="screen-photo">
   <div class="topbar">
     <div class="app-title" id="ph-top-title">Job</div>
-    <button class="round-back" onclick="showScreen('screen-jobs')" aria-label="Back">←</button>
+    <button class="round-back" onclick="navigateBack()" aria-label="Back">←</button>
   </div>
   <div class="content">
     <div class="form-group">
       <div class="field-label">Description</div>
-      <textarea class="desc-input" id="photo-desc" placeholder="Slab, Framing, Joinery..." rows="3"></textarea>
+      <textarea class="desc-input" id="photo-desc" placeholder="e.g. Slab, Framing, Joinery..." rows="3"></textarea>
     </div>
     <div class="photo-actions">
       <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
@@ -495,7 +495,7 @@
 <div class="screen" id="screen-settings">
   <div class="topbar">
     <div class="app-title">Settings</div>
-    <button class="round-back" onclick="showScreen('screen-jobs')" aria-label="Back">←</button>
+    <button class="round-back" onclick="navigateBack()" aria-label="Back">←</button>
   </div>
   <div class="content">
 
@@ -786,13 +786,106 @@ function showScreen(id) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  NAVIGATION STACK — supports phone hardware back button
+// ════════════════════════════════════════════════════════════════
+let navStack = []; // ['screen-jobs', 'screen-photo', ...] — current is last
+let isHandlingPopState = false;
+
+// Set the "home" / root screen — does NOT push history
+function setRootScreen(id) {
+  navStack = [id];
+  showScreen(id);
+  // Replace current history entry with a marker so back goes to home behaviour
+  history.replaceState({ screen: id, depth: 0 }, '', '');
+}
+
+// Navigate forward — pushes history entry so phone back works
+function navigateTo(id, extra) {
+  if (navStack[navStack.length - 1] === id) return; // already there
+  navStack.push(id);
+  history.pushState({ screen: id, depth: navStack.length - 1, extra: extra || null }, '', '');
+  showScreen(id);
+}
+
+// Navigate back one step (the round-back button uses this)
+function navigateBack() {
+  if (navStack.length > 1) {
+    history.back(); // popstate handler will do the actual screen change
+  }
+}
+
+// Replace the "Back" round button to use navigateBack instead of hardcoded screens
+window.addEventListener('popstate', (e) => {
+  isHandlingPopState = true;
+  try {
+    // 1. Lightbox open? Close it first.
+    if (document.getElementById('lightbox').classList.contains('open')) {
+      closeLightbox();
+      // Push state back so the browser doesn't actually go back
+      history.pushState({ screen: navStack[navStack.length - 1], depth: navStack.length - 1 }, '', '');
+      return;
+    }
+    // 2. Confirm modal open? Close it.
+    if (document.getElementById('confirmModal').classList.contains('open')) {
+      closeConfirm();
+      history.pushState({ screen: navStack[navStack.length - 1], depth: navStack.length - 1 }, '', '');
+      return;
+    }
+    // 3. On camera screen — handle cleanup
+    const onCamera = document.getElementById('screen-camera').classList.contains('active');
+    if (onCamera) {
+      // If Done was clicked, just close cleanly and pop the stack
+      if (camClosedCleanly) {
+        camClosedCleanly = false;
+        navStack.pop();
+        const prev = navStack[navStack.length - 1] || 'screen-jobs';
+        showScreen(prev);
+        renderThumbs();
+        return;
+      }
+      // Otherwise this is a hardware-back press — discard new photos silently
+      // (we can't easily show a confirm dialog mid-popstate)
+      cancelCameraFromBack();
+      navStack.pop();
+      return;
+    }
+    // 4. Pop the stack and show the previous screen
+    if (navStack.length > 1) {
+      navStack.pop();
+      const prev = navStack[navStack.length - 1];
+      showScreen(prev);
+    } else {
+      // At the root — let browser handle it (will exit the PWA)
+      // But re-push a state so accidental back doesn't lose context
+      // (Android usually exits the PWA at this point anyway)
+    }
+  } finally {
+    isHandlingPopState = false;
+  }
+});
+
+// Special cancel-from-back-button: same as cancelCamera but synchronous-ish
+function cancelCameraFromBack() {
+  // Discard any photos taken in this camera session
+  if (photos.length > camPhotosBeforeOpen) {
+    while (photos.length > camPhotosBeforeOpen) {
+      const p = photos.pop();
+      URL.revokeObjectURL(p.url);
+    }
+    renderThumbs();
+  }
+  stopCameraStream();
+  showScreen('screen-photo');
+}
+
 function showError(msg) {
   hideLoader();
   document.getElementById('error-detail').textContent = msg;
   showScreen('screen-error');
 }
 
-function openSettings() { showScreen('screen-settings'); renderSettings(); }
+function openSettings() { navigateTo('screen-settings'); renderSettings(); }
 
 function getJobOrder() {
   return loadLocal().jobOrder || [];
@@ -956,7 +1049,7 @@ function selectJob(id) {
   if (!currentJob) return;
   document.getElementById('ph-top-title').textContent = currentJob.code;
   resetSessionSilent();
-  showScreen('screen-photo');
+  navigateTo('screen-photo');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -973,7 +1066,7 @@ async function triggerCamera() {
   camPhotosBeforeOpen = photos.length;
   document.getElementById('cam-job-pill').textContent = currentJob ? currentJob.code : '';
   updateCamUi();
-  showScreen('screen-camera');
+  navigateTo('screen-camera');
   await startCameraStream();
 }
 
@@ -1074,8 +1167,10 @@ function removePhotoFromCam(idx) {
 
 function doneCamera() {
   stopCameraStream();
-  showScreen('screen-photo');
-  renderThumbs();
+  // Trigger history back so the popstate handler runs and pops the stack.
+  // We use a flag so popstate knows the camera was closed cleanly (no photos to discard prompt).
+  camClosedCleanly = true;
+  history.back();
 }
 
 function cancelCamera() {
@@ -1090,13 +1185,11 @@ function cancelCamera() {
           URL.revokeObjectURL(p.url);
         }
         renderThumbs();
-        stopCameraStream();
-        showScreen('screen-photo');
+        doneCamera();
       }
     );
   } else {
-    stopCameraStream();
-    showScreen('screen-photo');
+    doneCamera();
   }
 }
 
@@ -1104,6 +1197,8 @@ function closeCamera() {
   // X button = same behaviour as Done (keep photos)
   doneCamera();
 }
+
+let camClosedCleanly = false;
 
 function triggerGallery() {
   if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
@@ -1835,7 +1930,7 @@ function hideLoader() {
 
 async function boot() {
   if (typeof msal === 'undefined') { showError('Microsoft sign-in library failed to load. Reload the app.'); return; }
-  if (!getClientId()) { hideLoader(); showScreen('screen-firstrun'); return; }
+  if (!getClientId()) { hideLoader(); setRootScreen('screen-firstrun'); return; }
 
   setLoaderMsg('Connecting to Microsoft...');
   try { await initMsal(); } catch(e) { showError(e.message); return; }
@@ -1843,7 +1938,7 @@ async function boot() {
   let loggedIn;
   try { loggedIn = await checkExistingLogin(); }
   catch(e) { showError('Login check failed: ' + e.message); return; }
-  if (!loggedIn) { hideLoader(); showScreen('screen-login'); return; }
+  if (!loggedIn) { hideLoader(); setRootScreen('screen-login'); return; }
 
   setLoaderMsg('Loading from SharePoint...');
   try {
@@ -1856,9 +1951,9 @@ async function boot() {
     hideLoader();
     if (myJobs.length === 0 && !isAdmin) {
       document.getElementById('pending-name').textContent = currentAccount.name;
-      showScreen('screen-pending');
+      setRootScreen('screen-pending');
     } else {
-      showScreen('screen-jobs');
+      setRootScreen('screen-jobs');
     }
   } catch(e) {
     console.error(e);
