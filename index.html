@@ -191,7 +191,7 @@
   /* TOAST — bigger and more visible now */
   #toast {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(.85); opacity: 0; pointer-events: none;
-    background: var(--surface); border: 2px solid var(--border);
+    background: #1a1f2e; border: 2px solid var(--border);
     border-radius: 16px; padding: 24px 28px;
     font-size: 1rem; color: var(--text);
     transition: transform .3s, opacity .3s; z-index: 9999;
@@ -200,9 +200,9 @@
     font-weight: 500;
   }
   #toast.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  #toast.success { border-color: var(--success); background: rgba(76,175,138,.12); color: var(--success); font-size: 1.15rem; font-weight: 600; padding: 28px 32px; }
+  #toast.success { border-color: var(--success); background: var(--success); color: #fff; font-size: 1.15rem; font-weight: 600; padding: 28px 32px; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
   #toast.success .big-icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
-  #toast.error { border-color: var(--danger); background: rgba(255,92,92,.1); color: var(--danger); }
+  #toast.error { border-color: var(--danger); background: var(--danger); color: #fff; }
 
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); align-items: center; justify-content: center; z-index: 500; padding: 24px; display: none; }
   .modal-overlay.open { display: flex; }
@@ -225,6 +225,32 @@
 
   .pending-icon { font-size: 4rem; margin-bottom: 16px; }
   .err-detail { background: var(--surface2); border-left: 3px solid var(--danger); padding: 12px; border-radius: 6px; font-size: .75rem; color: var(--text-dim); margin: 16px 0; text-align: left; word-break: break-all; }
+
+  /* IN-APP CAMERA */
+  #screen-camera { background: #000; }
+  .cam-container { position: relative; width: 100%; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+  .cam-video-wrap { flex: 1; position: relative; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
+  #cam-video { width: 100%; height: 100%; object-fit: cover; }
+  .cam-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: .9rem; background: #000; z-index: 1; }
+  .cam-top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 16px 20px; display: flex; align-items: center; gap: 12px; background: linear-gradient(to bottom, rgba(0,0,0,.7), transparent); z-index: 10; }
+  .cam-close { background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3); color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .cam-job-pill { background: rgba(0,0,0,.6); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 600; }
+  .cam-counter { background: rgba(15,99,52,.9); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 700; margin-left: auto; }
+  .cam-counter.full { background: rgba(255,92,92,.9); }
+  .cam-thumbs { position: absolute; bottom: 100px; left: 0; right: 0; padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,.6), transparent); }
+  .cam-thumbs::-webkit-scrollbar { display: none; }
+  .cam-thumb { flex: 0 0 60px; width: 60px; height: 60px; border-radius: 8px; overflow: hidden; border: 2px solid #fff; position: relative; cursor: pointer; }
+  .cam-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .cam-thumb-x { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,.85); border: none; color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: .65rem; cursor: pointer; line-height: 1; }
+  .cam-bottom-bar { padding: 16px 20px 24px; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: space-between; gap: 16px; z-index: 5; }
+  .cam-shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 4px solid rgba(255,255,255,.4); cursor: pointer; flex-shrink: 0; transition: transform .1s; box-shadow: 0 0 0 4px rgba(0,0,0,.3); }
+  .cam-shutter:active { transform: scale(.92); }
+  .cam-shutter:disabled { background: var(--text-dim); pointer-events: none; }
+  .cam-side-btn { background: var(--accent); border: none; color: #fff; padding: 14px 22px; border-radius: 12px; font-size: .9rem; font-weight: 700; font-family: var(--font); cursor: pointer; min-width: 100px; }
+  .cam-side-btn:hover { background: var(--accent-light); }
+  .cam-side-btn.empty { background: rgba(255,255,255,.15); color: #fff; }
+  .cam-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 20; transition: opacity .15s; }
+  .cam-flash.flash { opacity: .8; }
 </style>
 </head>
 <body>
@@ -351,7 +377,6 @@
         <span class="btn-count">Multi-select</span>
       </button>
     </div>
-    <input type="file" id="input-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFiles(this.files)">
     <input type="file" id="input-gallery" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
     <div class="field-label">Photos (<span id="photo-count">0</span> / 5) — tap to enlarge</div>
     <div class="thumb-grid" id="thumb-grid"></div>
@@ -373,6 +398,28 @@
     <div class="action-row">
       <button class="btn btn-reset" onclick="confirmDialog('Reset Session?', 'This will clear all photos and the description.', resetSession)">↺ Reset</button>
       <button class="btn btn-save" id="btn-save" onclick="savePhotos()">↑ Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- IN-APP CAMERA -->
+<div class="screen" id="screen-camera">
+  <div class="cam-container">
+    <div class="cam-video-wrap">
+      <div class="cam-loading" id="cam-loading">Starting camera...</div>
+      <video id="cam-video" autoplay playsinline muted></video>
+      <div class="cam-flash" id="cam-flash"></div>
+      <div class="cam-top-bar">
+        <button class="cam-close" onclick="closeCamera()">✕</button>
+        <div class="cam-job-pill" id="cam-job-pill">Job</div>
+        <div class="cam-counter" id="cam-counter">0 / 5</div>
+      </div>
+      <div class="cam-thumbs" id="cam-thumbs"></div>
+    </div>
+    <div class="cam-bottom-bar">
+      <button class="cam-side-btn empty" id="cam-cancel" onclick="cancelCamera()">Cancel</button>
+      <button class="cam-shutter" id="cam-shutter" onclick="takePhoto()" aria-label="Take photo"></button>
+      <button class="cam-side-btn" id="cam-done" onclick="doneCamera()">Done</button>
     </div>
   </div>
 </div>
@@ -721,10 +768,149 @@ function selectJob(id) {
 // ════════════════════════════════════════════════════════════════
 //  PHOTOS — Camera, Gallery, Compress to 2MP, Stamp
 // ════════════════════════════════════════════════════════════════
-function triggerCamera() {
+// ════════════════════════════════════════════════════════════════
+//  IN-APP CAMERA
+// ════════════════════════════════════════════════════════════════
+let camStream = null;
+let camPhotosBeforeOpen = 0; // remember count when camera opened, to allow Cancel
+
+async function triggerCamera() {
   if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
-  document.getElementById('input-camera').click();
+  camPhotosBeforeOpen = photos.length;
+  document.getElementById('cam-job-pill').textContent = currentJob ? currentJob.code : '';
+  updateCamUi();
+  showScreen('screen-camera');
+  await startCameraStream();
 }
+
+async function startCameraStream() {
+  const loading = document.getElementById('cam-loading');
+  loading.textContent = 'Starting camera...';
+  loading.style.display = 'flex';
+  try {
+    if (camStream) stopCameraStream();
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
+    });
+    const video = document.getElementById('cam-video');
+    video.srcObject = camStream;
+    await new Promise(resolve => {
+      if (video.readyState >= 2) return resolve();
+      video.onloadedmetadata = resolve;
+    });
+    loading.style.display = 'none';
+  } catch(e) {
+    console.error('Camera error:', e);
+    loading.innerHTML = `Camera unavailable: ${e.message}<br><br>Please grant camera permission and try again.`;
+  }
+}
+
+function stopCameraStream() {
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  const video = document.getElementById('cam-video');
+  if (video) video.srcObject = null;
+}
+
+async function takePhoto() {
+  if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
+  const video = document.getElementById('cam-video');
+  if (!video.videoWidth) return;
+  const shutter = document.getElementById('cam-shutter');
+  shutter.disabled = true;
+  // Flash effect
+  const flash = document.getElementById('cam-flash');
+  flash.classList.add('flash');
+  setTimeout(() => flash.classList.remove('flash'), 150);
+
+  try {
+    // Capture frame to canvas
+    const canvas = document.createElement('canvas');
+    const totalPixels = video.videoWidth * video.videoHeight;
+    let scale = 1;
+    if (totalPixels > MAX_PIXELS_2MP) scale = Math.sqrt(MAX_PIXELS_2MP / totalPixels);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    let blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.88));
+    // Stamp GPS if enabled
+    if (gpsEnabled && gpsCoords) {
+      blob = await stampGPS(blob);
+    }
+    photos.push({ blob, url: URL.createObjectURL(blob), originalName: 'camera.jpg' });
+    updateCamUi();
+    renderThumbs(); // also update main screen thumbs underneath
+  } catch(e) {
+    console.error('Take photo error:', e);
+    showToast('Failed to capture: ' + e.message, 'error');
+  } finally {
+    shutter.disabled = false;
+  }
+}
+
+function updateCamUi() {
+  document.getElementById('cam-counter').textContent = `${photos.length} / 5`;
+  document.getElementById('cam-counter').classList.toggle('full', photos.length >= 5);
+  const thumbs = document.getElementById('cam-thumbs');
+  thumbs.innerHTML = photos.map((p, i) => `
+    <div class="cam-thumb">
+      <img src="${p.url}" alt="">
+      <button class="cam-thumb-x" onclick="removePhotoFromCam(${i})">✕</button>
+    </div>
+  `).join('');
+  // Disable shutter at max
+  document.getElementById('cam-shutter').disabled = photos.length >= 5;
+}
+
+function removePhotoFromCam(idx) {
+  URL.revokeObjectURL(photos[idx].url);
+  photos.splice(idx, 1);
+  updateCamUi();
+  renderThumbs();
+}
+
+function doneCamera() {
+  stopCameraStream();
+  showScreen('screen-photo');
+  renderThumbs();
+}
+
+function cancelCamera() {
+  // Remove any photos taken in this session
+  if (photos.length > camPhotosBeforeOpen) {
+    confirmDialog(
+      'Discard Photos?',
+      `You took ${photos.length - camPhotosBeforeOpen} photo(s). Cancel will discard them.`,
+      () => {
+        while (photos.length > camPhotosBeforeOpen) {
+          const p = photos.pop();
+          URL.revokeObjectURL(p.url);
+        }
+        renderThumbs();
+        stopCameraStream();
+        showScreen('screen-photo');
+      }
+    );
+  } else {
+    stopCameraStream();
+    showScreen('screen-photo');
+  }
+}
+
+function closeCamera() {
+  // X button = same behaviour as Done (keep photos)
+  doneCamera();
+}
+
 function triggerGallery() {
   if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
   document.getElementById('input-gallery').click();
@@ -753,7 +939,6 @@ async function handleFiles(files) {
     }
   }
   renderThumbs();
-  document.getElementById('input-camera').value = '';
   document.getElementById('input-gallery').value = '';
 }
 
@@ -868,13 +1053,38 @@ async function reverseGeocode(lat, lng) {
   // Build a clean short address
   const a = data.address || {};
   const parts = [];
+  // Street
   if (a.house_number && a.road) parts.push(`${a.house_number} ${a.road}`);
   else if (a.road) parts.push(a.road);
-  if (a.suburb || a.neighbourhood) parts.push(a.suburb || a.neighbourhood);
-  if (a.city || a.town || a.village) parts.push(a.city || a.town || a.village);
-  if (a.state) parts.push(a.state);
+  // Suburb (preferred over city)
+  const suburb = a.suburb || a.neighbourhood || a.hamlet || a.village;
+  const city = a.city || a.town;
+  if (suburb) {
+    parts.push(suburb);
+    // Only add city if it's different and we don't already have a suburb
+  } else if (city) {
+    parts.push(city);
+  }
+  // State (abbreviated for Australia)
+  if (a.state) {
+    parts.push(abbreviateState(a.state));
+  }
   if (parts.length === 0) return data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   return parts.join(', ');
+}
+
+function abbreviateState(state) {
+  const map = {
+    'Victoria': 'VIC',
+    'New South Wales': 'NSW',
+    'Queensland': 'QLD',
+    'South Australia': 'SA',
+    'Western Australia': 'WA',
+    'Tasmania': 'TAS',
+    'Australian Capital Territory': 'ACT',
+    'Northern Territory': 'NT'
+  };
+  return map[state] || state;
 }
 
 async function stampGPS(blob) {
