@@ -80,11 +80,15 @@
     border-radius: 50%;
     padding: 12px;
     cursor: pointer;
-    transition: transform .15s, background .2s, box-shadow .2s;
+    transition: transform .15s, background .2s, box-shadow .2s, opacity .2s;
     display: flex; align-items: center; justify-content: center; text-align: center;
     color: #fff; font-weight: 700;
     box-shadow: 0 4px 16px rgba(15,99,52,.3);
     word-break: break-word;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
   }
   .job-card:hover { background: var(--accent-light); box-shadow: 0 6px 24px rgba(15,99,52,.5); }
   .job-card:active { transform: scale(.95); }
@@ -92,7 +96,11 @@
     font-size: 1.3rem; line-height: 1.2;
     color: #fff; font-weight: 700;
     letter-spacing: -.5px;
+    pointer-events: none;
   }
+  .job-card.dragging { opacity: .4; transform: scale(1.05); z-index: 10; box-shadow: 0 12px 32px rgba(0,0,0,.6); }
+  .job-card.drag-over { box-shadow: 0 0 0 4px var(--accent2), 0 4px 16px rgba(15,99,52,.3); }
+  .reorder-hint { font-size: .7rem; color: var(--text-dim); text-align: center; margin-top: -6px; margin-bottom: 14px; font-style: italic; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: .85rem; border: 2px dashed var(--border); border-radius: var(--radius); }
   .empty-state .ico { font-size: 2.2rem; margin-bottom: 10px; }
 
@@ -123,11 +131,20 @@
   .thumb-empty { aspect-ratio: 1; border-radius: 8px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 1.2rem; }
 
   /* LIGHTBOX */
-  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 800; display: none; align-items: center; justify-content: center; }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.97); z-index: 800; display: none; flex-direction: column; }
   .lightbox.open { display: flex; }
-  .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
-  .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.15); border: none; color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; }
-  .lightbox-info { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,.7); padding: 10px 14px; border-radius: 8px; color: #fff; font-size: .82rem; text-align: center; }
+  .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.15); border: none; color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; z-index: 10; }
+  .lightbox-stage { flex: 1; position: relative; overflow: hidden; touch-action: pan-y; user-select: none; }
+  .lightbox-track { display: flex; height: 100%; transition: transform .3s cubic-bezier(.2,.9,.3,1); will-change: transform; }
+  .lightbox-track.no-anim { transition: none; }
+  .lightbox-slide { flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .lightbox-slide img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+  .lightbox-info { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,.7); padding: 8px 14px; border-radius: 16px; color: #fff; font-size: .8rem; font-weight: 600; z-index: 10; }
+  .lightbox-thumbs { padding: 10px; display: flex; gap: 6px; justify-content: center; overflow-x: auto; background: rgba(0,0,0,.6); }
+  .lightbox-thumbs::-webkit-scrollbar { display: none; }
+  .lightbox-thumb { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; cursor: pointer; opacity: .55; transition: opacity .15s, border-color .15s; }
+  .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .lightbox-thumb.active { opacity: 1; border-color: var(--accent); }
 
   .gps-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
   .gps-row .gps-icon { font-size: 1.1rem; }
@@ -305,10 +322,13 @@
 <div id="toast"></div>
 
 <!-- LIGHTBOX -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
-  <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">✕</button>
-  <img id="lightbox-img" src="" alt="">
-  <div class="lightbox-info" id="lightbox-info"></div>
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <div class="lightbox-info" id="lightbox-info">1 / 5</div>
+  <div class="lightbox-stage" id="lightbox-stage">
+    <div class="lightbox-track" id="lightbox-track"></div>
+  </div>
+  <div class="lightbox-thumbs" id="lightbox-thumbs"></div>
 </div>
 
 <div class="modal-overlay" id="confirmModal">
@@ -386,6 +406,7 @@
   </div>
   <div class="content">
     <div class="section-label">Select Job Site</div>
+    <div class="reorder-hint" id="reorder-hint" style="display:none">Tip: hold &amp; drag to reorder</div>
     <div class="job-grid" id="job-grid"></div>
   </div>
 </div>
@@ -406,15 +427,15 @@
       <textarea class="desc-input" id="photo-desc" placeholder="e.g. Concrete Slab, Roof Frame, North Elevation..." rows="3"></textarea>
     </div>
     <div class="photo-actions">
-      <button class="photo-btn primary" id="btn-camera" onclick="triggerCamera()">
-        <span class="btn-icon">📷</span>
-        <span class="btn-label">Take Photo</span>
-        <span class="btn-count" id="camera-count">0 / 5</span>
-      </button>
       <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
         <span class="btn-icon">🖼️</span>
         <span class="btn-label">From Gallery</span>
         <span class="btn-count">Multi-select</span>
+      </button>
+      <button class="photo-btn primary" id="btn-camera" onclick="triggerCamera()">
+        <span class="btn-icon">📷</span>
+        <span class="btn-label">Take Photo</span>
+        <span class="btn-count" id="camera-count">0 / 5</span>
       </button>
     </div>
     <input type="file" id="input-gallery" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
@@ -741,7 +762,7 @@ function signOut() {
 
 function saveFirstRun() {
   const cid = document.getElementById('firstrun-client-id').value.trim();
-  if (!cid) { showToast('Please enter the Client ID', 'error'); return; }
+  if (!cid) { showToast('Please Enter The Client ID', 'error'); return; }
   const local = loadLocal();
   local.clientId = cid;
   saveLocal(local);
@@ -767,22 +788,161 @@ function showError(msg) {
 
 function openSettings() { showScreen('screen-settings'); renderSettings(); }
 
+function getJobOrder() {
+  return loadLocal().jobOrder || [];
+}
+function saveJobOrder(orderArray) {
+  const local = loadLocal();
+  local.jobOrder = orderArray;
+  saveLocal(local);
+}
+
+// Apply saved order to jobs list, append any new jobs at the end
+function sortByUserOrder(jobs) {
+  const order = getJobOrder();
+  if (!order.length) return jobs.slice();
+  const idx = id => {
+    const i = order.indexOf(id);
+    return i === -1 ? 9999 : i;
+  };
+  return jobs.slice().sort((a, b) => idx(a.id) - idx(b.id));
+}
+
 function renderJobs() {
-  const jobs = getMyAuthorisedJobs();
+  const jobs = sortByUserOrder(getMyAuthorisedJobs());
   const grid = document.getElementById('job-grid');
   document.getElementById('user-name-pill').textContent = getMyName();
   const sBtn = document.getElementById('settings-btn');
   if (isAdmin) { sBtn.classList.add('admin'); sBtn.textContent = '🛡'; }
   else { sBtn.classList.remove('admin'); sBtn.textContent = '⚙'; }
+  const hint = document.getElementById('reorder-hint');
   if (jobs.length === 0) {
-    grid.innerHTML = `<div class="empty-state"><div class="ico">📋</div>No jobs assigned to you yet.<br>${isAdmin ? 'Create one in Admin → Jobs.' : 'Contact your admin to be authorised.'}</div>`;
+    hint.style.display = 'none';
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="ico">📋</div>No Jobs Assigned To You Yet.<br>${isAdmin ? 'Create One In Admin → Jobs.' : 'Contact Your Admin To Be Authorised.'}</div>`;
     return;
   }
+  hint.style.display = jobs.length > 1 ? 'block' : 'none';
   grid.innerHTML = jobs.map(j => `
-    <div class="job-card" onclick="selectJob('${j.id}')">
+    <div class="job-card" data-job-id="${j.id}" draggable="true">
       <div class="job-code">${escHtml(j.code)}</div>
     </div>
   `).join('');
+  attachJobDragHandlers();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  JOB CARD DRAG & DROP — desktop (HTML5) + mobile (long-press)
+// ════════════════════════════════════════════════════════════════
+let dragSrcEl = null;
+let touchDragEl = null;
+let touchStartTimer = null;
+let touchStartedDrag = false;
+let touchStartCoords = null;
+
+function attachJobDragHandlers() {
+  const cards = document.querySelectorAll('.job-card');
+  cards.forEach(card => {
+    // Desktop: HTML5 drag
+    card.addEventListener('dragstart', e => {
+      dragSrcEl = card;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.jobId);
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (card !== dragSrcEl) card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      if (dragSrcEl && card !== dragSrcEl) {
+        reorderJob(dragSrcEl.dataset.jobId, card.dataset.jobId);
+      }
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      dragSrcEl = null;
+    });
+    // Mobile: long-press to drag
+    card.addEventListener('touchstart', e => onJobTouchStart(e, card), { passive: true });
+    card.addEventListener('touchmove', e => onJobTouchMove(e, card), { passive: false });
+    card.addEventListener('touchend', e => onJobTouchEnd(e, card));
+    card.addEventListener('touchcancel', e => onJobTouchEnd(e, card));
+    // Click to select (only fires if no drag happened)
+    card.addEventListener('click', () => {
+      if (!touchStartedDrag) selectJob(card.dataset.jobId);
+    });
+  });
+}
+
+function onJobTouchStart(e, card) {
+  touchStartedDrag = false;
+  const t = e.touches[0];
+  touchStartCoords = { x: t.clientX, y: t.clientY };
+  clearTimeout(touchStartTimer);
+  touchStartTimer = setTimeout(() => {
+    // Long press → start dragging
+    touchStartedDrag = true;
+    touchDragEl = card;
+    card.classList.add('dragging');
+    if (navigator.vibrate) navigator.vibrate(40);
+  }, 350);
+}
+
+function onJobTouchMove(e, card) {
+  if (!touchStartCoords) return;
+  const t = e.touches[0];
+  const dx = t.clientX - touchStartCoords.x;
+  const dy = t.clientY - touchStartCoords.y;
+  // If user moved before long-press fired, cancel drag attempt (it's a scroll)
+  if (!touchStartedDrag) {
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      clearTimeout(touchStartTimer);
+      touchStartCoords = null;
+    }
+    return;
+  }
+  // We're dragging — find what's under the finger
+  e.preventDefault();
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  const target = document.elementFromPoint(t.clientX, t.clientY);
+  const dropCard = target ? target.closest('.job-card') : null;
+  if (dropCard && dropCard !== touchDragEl) dropCard.classList.add('drag-over');
+}
+
+function onJobTouchEnd(e, card) {
+  clearTimeout(touchStartTimer);
+  if (touchStartedDrag && touchDragEl) {
+    const t = (e.changedTouches && e.changedTouches[0]) || null;
+    if (t) {
+      const target = document.elementFromPoint(t.clientX, t.clientY);
+      const dropCard = target ? target.closest('.job-card') : null;
+      if (dropCard && dropCard !== touchDragEl) {
+        reorderJob(touchDragEl.dataset.jobId, dropCard.dataset.jobId);
+      }
+    }
+    touchDragEl.classList.remove('dragging');
+  }
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  touchDragEl = null;
+  touchStartCoords = null;
+  // Reset flag after click handler has run
+  setTimeout(() => { touchStartedDrag = false; }, 50);
+}
+
+function reorderJob(srcId, destId) {
+  const jobs = sortByUserOrder(getMyAuthorisedJobs());
+  const fromIdx = jobs.findIndex(j => j.id === srcId);
+  const toIdx = jobs.findIndex(j => j.id === destId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [moved] = jobs.splice(fromIdx, 1);
+  jobs.splice(toIdx, 0, moved);
+  saveJobOrder(jobs.map(j => j.id));
+  renderJobs();
 }
 
 function selectJob(id) {
@@ -804,7 +964,7 @@ let camStream = null;
 let camPhotosBeforeOpen = 0; // remember count when camera opened, to allow Cancel
 
 async function triggerCamera() {
-  if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
+  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
   camPhotosBeforeOpen = photos.length;
   document.getElementById('cam-job-pill').textContent = currentJob ? currentJob.code : '';
   updateCamUi();
@@ -849,7 +1009,7 @@ function stopCameraStream() {
 }
 
 async function takePhoto() {
-  if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
+  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
   const video = document.getElementById('cam-video');
   if (!video.videoWidth) return;
   const shutter = document.getElementById('cam-shutter');
@@ -880,7 +1040,7 @@ async function takePhoto() {
     renderThumbs(); // also update main screen thumbs underneath
   } catch(e) {
     console.error('Take photo error:', e);
-    showToast('Failed to capture: ' + e.message, 'error');
+    showToast('Failed To Capture: ' + e.message, 'error');
   } finally {
     shutter.disabled = false;
   }
@@ -941,17 +1101,17 @@ function closeCamera() {
 }
 
 function triggerGallery() {
-  if (photos.length >= 5) { showToast('Max 5 photos reached', 'error'); return; }
+  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
   document.getElementById('input-gallery').click();
 }
 
 async function handleFiles(files) {
   const remaining = 5 - photos.length;
   const toProcess = Array.from(files).slice(0, remaining);
-  if (files.length > remaining) showToast(`Only ${remaining} slot(s) left`, 'error');
+  if (files.length > remaining) showToast(`Only ${remaining} Slot(s) Left`, 'error');
 
   // Show processing state
-  if (toProcess.length > 1) showToast('Processing photos...', '');
+  if (toProcess.length > 1) showToast('Processing Photos...', '');
 
   for (const file of toProcess) {
     try {
@@ -964,7 +1124,7 @@ async function handleFiles(files) {
       photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name });
     } catch(e) {
       console.error('Process photo error:', e);
-      showToast('Failed to process one photo', 'error');
+      showToast('Failed To Process One Photo', 'error');
     }
   }
   renderThumbs();
@@ -1025,18 +1185,140 @@ function renderThumbs() {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  LIGHTBOX
+//  LIGHTBOX — swipeable with thumbnail strip and infinite loop
 // ════════════════════════════════════════════════════════════════
+let lbIndex = 0;
+let lbStartX = 0;
+let lbStartY = 0;
+let lbDeltaX = 0;
+let lbDragging = false;
+let lbStageWidth = 0;
+let lbAxisLocked = null; // 'x' | 'y' | null
+
 function openLightbox(idx) {
   if (!photos[idx]) return;
-  const lb = document.getElementById('lightbox');
-  document.getElementById('lightbox-img').src = photos[idx].url;
-  document.getElementById('lightbox-info').textContent = `Photo ${idx + 1} of ${photos.length}`;
-  lb.classList.add('open');
+  lbIndex = idx;
+  renderLightbox();
+  document.getElementById('lightbox').classList.add('open');
+  // Wait for layout
+  requestAnimationFrame(() => {
+    lbStageWidth = document.getElementById('lightbox-stage').offsetWidth;
+    positionTrack(false);
+  });
 }
+
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
 }
+
+function renderLightbox() {
+  if (photos.length === 0) { closeLightbox(); return; }
+  if (lbIndex >= photos.length) lbIndex = photos.length - 1;
+  if (lbIndex < 0) lbIndex = 0;
+  document.getElementById('lightbox-info').textContent = `${lbIndex + 1} / ${photos.length}`;
+  // Track: render all slides
+  const track = document.getElementById('lightbox-track');
+  track.innerHTML = photos.map(p => `<div class="lightbox-slide"><img src="${p.url}" alt=""></div>`).join('');
+  // Thumbnail strip
+  const tEl = document.getElementById('lightbox-thumbs');
+  tEl.innerHTML = photos.map((p, i) => `
+    <div class="lightbox-thumb ${i === lbIndex ? 'active' : ''}" onclick="goToLightbox(${i})">
+      <img src="${p.url}" alt="">
+    </div>
+  `).join('');
+}
+
+function positionTrack(animate = true) {
+  const track = document.getElementById('lightbox-track');
+  if (!animate) track.classList.add('no-anim');
+  track.style.transform = `translateX(${-lbIndex * lbStageWidth}px)`;
+  if (!animate) {
+    // Force reflow then re-enable animations
+    void track.offsetWidth;
+    track.classList.remove('no-anim');
+  }
+}
+
+function goToLightbox(idx) {
+  // Wrap around
+  if (photos.length === 0) return;
+  if (idx < 0) idx = photos.length - 1;
+  if (idx >= photos.length) idx = 0;
+  lbIndex = idx;
+  positionTrack(true);
+  // Update active thumb
+  document.querySelectorAll('.lightbox-thumb').forEach((el, i) => {
+    el.classList.toggle('active', i === lbIndex);
+  });
+  document.getElementById('lightbox-info').textContent = `${lbIndex + 1} / ${photos.length}`;
+}
+
+function lbNext() { goToLightbox(lbIndex + 1); }
+function lbPrev() { goToLightbox(lbIndex - 1); }
+
+// Touch/mouse handlers
+function lbStart(e) {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  const t = e.touches ? e.touches[0] : e;
+  lbStartX = t.clientX;
+  lbStartY = t.clientY;
+  lbDeltaX = 0;
+  lbDragging = true;
+  lbAxisLocked = null;
+  lbStageWidth = document.getElementById('lightbox-stage').offsetWidth;
+  document.getElementById('lightbox-track').classList.add('no-anim');
+}
+
+function lbMove(e) {
+  if (!lbDragging) return;
+  const t = e.touches ? e.touches[0] : e;
+  const dx = t.clientX - lbStartX;
+  const dy = t.clientY - lbStartY;
+  if (lbAxisLocked === null) {
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+      lbAxisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+  }
+  if (lbAxisLocked === 'x') {
+    lbDeltaX = dx;
+    if (e.cancelable) e.preventDefault();
+    document.getElementById('lightbox-track').style.transform = `translateX(${-lbIndex * lbStageWidth + lbDeltaX}px)`;
+  }
+}
+
+function lbEnd() {
+  if (!lbDragging) return;
+  lbDragging = false;
+  document.getElementById('lightbox-track').classList.remove('no-anim');
+  if (lbAxisLocked === 'x') {
+    const threshold = lbStageWidth * 0.2;
+    if (lbDeltaX < -threshold) {
+      lbNext();
+    } else if (lbDeltaX > threshold) {
+      lbPrev();
+    } else {
+      positionTrack(true);
+    }
+  }
+  lbDeltaX = 0;
+  lbAxisLocked = null;
+}
+
+// Attach handlers once
+document.getElementById('lightbox-stage').addEventListener('touchstart', lbStart, { passive: true });
+document.getElementById('lightbox-stage').addEventListener('touchmove', lbMove, { passive: false });
+document.getElementById('lightbox-stage').addEventListener('touchend', lbEnd);
+document.getElementById('lightbox-stage').addEventListener('mousedown', lbStart);
+window.addEventListener('mousemove', lbMove);
+window.addEventListener('mouseup', lbEnd);
+
+// Reposition on resize/orientation change
+window.addEventListener('resize', () => {
+  if (document.getElementById('lightbox').classList.contains('open')) {
+    lbStageWidth = document.getElementById('lightbox-stage').offsetWidth;
+    positionTrack(false);
+  }
+});
 
 // ════════════════════════════════════════════════════════════════
 //  GPS — get coords + reverse geocode to address
@@ -1061,7 +1343,7 @@ async function toggleGPS(en) {
         gpsEnabled = false;
         document.getElementById('gps-toggle').checked = false;
         document.getElementById('gps-status').textContent = 'Location permission denied';
-        showToast('GPS denied — enable in browser settings', 'error');
+        showToast('GPS Denied — Enable In Browser Settings', 'error');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
@@ -1175,7 +1457,7 @@ async function stampGPS(blob) {
 async function savePhotos() {
   if (!photos.length) return;
   const desc = document.getElementById('photo-desc').value.trim();
-  if (!desc) { showToast('Please enter a description', 'error'); return; }
+  if (!desc) { showToast('Please Enter A Description', 'error'); return; }
   await getToken();
   await getSharePointIds();
 
@@ -1191,7 +1473,7 @@ async function savePhotos() {
   progress.classList.add('visible');
 
   try { await ensureFolder(folderPath); }
-  catch(e) { showToast('Folder error: ' + e.message, 'error'); progress.classList.remove('visible'); return; }
+  catch(e) { showToast('Folder Error: ' + e.message, 'error'); progress.classList.remove('visible'); return; }
 
   let success = 0;
   for (let i = 0; i < photos.length; i++) {
@@ -1201,14 +1483,14 @@ async function savePhotos() {
     label.textContent = `Uploading ${i+1} of ${photos.length}...`;
     bar.style.width = ((i / photos.length) * 100) + '%';
     try { await uploadFile(folderPath, filename, p.blob); success++; }
-    catch(e) { showToast(`Upload ${i+1} failed: ${e.message}`, 'error'); }
+    catch(e) { showToast(`Upload ${i+1} Failed: ${e.message}`, 'error'); }
   }
   bar.style.width = '100%';
   label.textContent = `Done!`;
   setTimeout(() => {
     progress.classList.remove('visible');
     if (success === photos.length) {
-      showBigSuccess(`${success} photo${success>1?'s':''} saved to AH Site`);
+      showBigSuccess(`${success} Photo${success>1?'s':''} Saved To AH Site`);
       resetSessionSilent();
     }
   }, 800);
@@ -1279,7 +1561,7 @@ function encodeURIPath(p) { return p.split('/').map(s => encodeURIComponent(s)).
 // ════════════════════════════════════════════════════════════════
 //  RESET / MODAL
 // ════════════════════════════════════════════════════════════════
-function resetSession() { resetSessionSilent(); showToast('Session reset', ''); }
+function resetSession() { resetSessionSilent(); showToast('Session Reset', ''); }
 function resetSessionSilent() {
   photos.forEach(p => URL.revokeObjectURL(p.url));
   photos = [];
@@ -1327,7 +1609,7 @@ function saveProfile() {
   const local = loadLocal();
   local.managerName = name;
   saveLocal(local);
-  showToast('✅ Profile saved', 'success');
+  showToast('✅ Profile Saved', 'success');
   renderJobs();
 }
 
@@ -1373,11 +1655,11 @@ function renderAdminJobs() {
 
 async function createNewJob() {
   const code = document.getElementById('new-job-code').value.trim();
-  if (!code) { showToast('Enter job code', 'error'); return; }
+  if (!code) { showToast('Enter Job Code', 'error'); return; }
   if (cloudConfig.jobs.some(j => j.code.toLowerCase() === code.toLowerCase())) {
-    showToast('Job code already exists', 'error'); return;
+    showToast('Job Code Already Exists', 'error'); return;
   }
-  showToast('Creating folder...', '');
+  showToast('Creating Folder...', '');
   await getToken();
   try {
     await ensureFolder(`${ROOT_FOLDER}/${code}`);
@@ -1391,7 +1673,7 @@ async function createNewJob() {
     document.getElementById('new-job-code').value = '';
     renderAdminJobs();
     renderAdminManagers();
-    showToast(`✅ Job "${code}" created`, 'success');
+    showToast(`✅ Job "${code}" Created`, 'success');
   } catch(e) {
     showToast('Failed: ' + e.message, 'error');
   }
@@ -1407,7 +1689,7 @@ function archiveJob(id) {
       showToast('Archiving...', '');
       await getToken();
       try { await moveFolder(`${ROOT_FOLDER}/${job.code}`, `${ROOT_FOLDER}/${ARCHIVE_SUBFOLDER}`); }
-      catch(e) { showToast('Move warning: ' + e.message, 'error'); }
+      catch(e) { showToast('Move Warning: ' + e.message, 'error'); }
       job.archived = true;
       Object.values(cloudConfig.managers).forEach(m => {
         m.jobIds = m.jobIds.filter(jid => jid !== id);
@@ -1430,7 +1712,7 @@ function restoreJob(id) {
       showToast('Restoring...', '');
       await getToken();
       try { await moveFolder(`${ROOT_FOLDER}/${ARCHIVE_SUBFOLDER}/${job.code}`, ROOT_FOLDER); }
-      catch(e) { showToast('Move warning: ' + e.message, 'error'); }
+      catch(e) { showToast('Move Warning: ' + e.message, 'error'); }
       job.archived = false;
       const adminEmail = getAdminEmail();
       if (cloudConfig.managers[adminEmail] && !cloudConfig.managers[adminEmail].jobIds.includes(id)) {
@@ -1489,7 +1771,7 @@ async function toggleAuth(email, jobId, checked) {
   if (checked) { if (!m.jobIds.includes(jobId)) m.jobIds.push(jobId); }
   else { m.jobIds = m.jobIds.filter(id => id !== jobId); }
   try { await saveCloudConfig(); renderAdminManagers(); }
-  catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+  catch(e) { showToast('Save Failed: ' + e.message, 'error'); }
 }
 
 function removeManager(email) {
@@ -1500,7 +1782,7 @@ function removeManager(email) {
       delete cloudConfig.managers[email];
       await saveCloudConfig();
       renderAdminManagers();
-      showToast('✅ Manager removed', 'success');
+      showToast('✅ Manager Removed', 'success');
     }
   );
 }
@@ -1512,8 +1794,8 @@ async function saveAdminConfig() {
   local.clientId = cid;
   saveLocal(local);
   cloudConfig.adminEmail = ae;
-  try { await saveCloudConfig(); showToast('✅ Config saved', 'success'); }
-  catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+  try { await saveCloudConfig(); showToast('✅ Config Saved', 'success'); }
+  catch(e) { showToast('Save Failed: ' + e.message, 'error'); }
 }
 
 // ════════════════════════════════════════════════════════════════
