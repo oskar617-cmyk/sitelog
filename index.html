@@ -120,9 +120,30 @@
   .job-header .jname { font-size: .9rem; color: var(--text-dim); }
 
   .field-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
-  .desc-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 80px; transition: border-color .2s; }
+  .desc-wrap { position: relative; }
+  .desc-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 60px 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 80px; transition: border-color .2s; }
   .desc-input:focus { outline: none; border-color: var(--accent2); }
   .desc-input::placeholder { color: var(--text-dim); }
+  .mic-btn {
+    position: absolute; top: 10px; right: 10px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--accent); border: none; color: #fff;
+    font-size: 1.25rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .1s, background .2s, box-shadow .2s;
+    box-shadow: 0 2px 8px rgba(15,99,52,.4);
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .mic-btn:hover { background: var(--accent-light); }
+  .mic-btn:active, .mic-btn.recording { background: var(--danger); transform: scale(1.08); box-shadow: 0 0 0 6px rgba(255,92,92,.25); }
+  .mic-btn.recording { animation: micPulse 1.2s ease-in-out infinite; }
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,92,92,.45); }
+    50%      { box-shadow: 0 0 0 12px rgba(255,92,92,0); }
+  }
+  .mic-status { font-size: .75rem; color: var(--text-dim); margin-top: 6px; min-height: 16px; padding-left: 2px; }
+  .mic-status.recording { color: var(--danger); font-weight: 600; }
 
   .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
   .photo-btn { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px 10px; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text); }
@@ -436,7 +457,13 @@
   <div class="content">
     <div class="form-group">
       <div class="field-label">Description</div>
-      <textarea class="desc-input" id="photo-desc" placeholder="e.g. Slab, Framing, Joinery..." rows="3"></textarea>
+      <div class="desc-wrap">
+        <textarea class="desc-input" id="photo-desc" placeholder="e.g. Slab, Framing, Joinery..." rows="3"></textarea>
+        <button class="mic-btn" id="mic-btn" aria-label="Voice input">
+          <span class="mic-icon">🎤</span>
+        </button>
+      </div>
+      <div class="mic-status" id="mic-status"></div>
     </div>
     <div class="photo-actions">
       <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
@@ -1561,6 +1588,147 @@ async function stampGPS(blob) {
 // ════════════════════════════════════════════════════════════════
 //  SAVE PHOTOS — to SharePoint
 // ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//  VOICE INPUT — press & hold the mic to dictate description
+// ════════════════════════════════════════════════════════════════
+let voiceRec = null;
+let voiceActive = false;
+let voiceStartedAt = 0;
+let voiceFinalText = '';
+let voiceInterimText = '';
+let voiceBaseValue = '';
+
+function getSpeechRecognition() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function titleCaseWords(s) {
+  // Capitalise first letter of every word; preserve digits and punctuation
+  return s.replace(/(^|\s|[\(\[\-/])(\S)/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
+function startVoice() {
+  const SR = getSpeechRecognition();
+  if (!SR) {
+    showToast('Voice Input Not Supported On This Browser', 'error');
+    return;
+  }
+  if (voiceActive) return;
+  voiceActive = true;
+  voiceStartedAt = Date.now();
+  voiceFinalText = '';
+  voiceInterimText = '';
+  const desc = document.getElementById('photo-desc');
+  voiceBaseValue = desc.value;
+
+  voiceRec = new SR();
+  voiceRec.lang = 'en-AU';
+  voiceRec.interimResults = true;
+  voiceRec.continuous = true;
+  voiceRec.maxAlternatives = 1;
+
+  voiceRec.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const transcript = e.results[i][0].transcript;
+      if (e.results[i].isFinal) voiceFinalText += transcript + ' ';
+      else interim += transcript;
+    }
+    voiceInterimText = interim;
+    updateVoicePreview();
+  };
+
+  voiceRec.onerror = (e) => {
+    console.warn('Voice error:', e.error);
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      showToast('Microphone Permission Denied', 'error');
+      stopVoice(false);
+    } else if (e.error === 'no-speech') {
+      // Ignore — user just hasn't spoken yet
+    } else if (e.error !== 'aborted') {
+      showToast('Voice Error: ' + e.error, 'error');
+    }
+  };
+
+  voiceRec.onend = () => {
+    // If user is still holding the button, restart (continuous mode)
+    if (voiceActive) {
+      try { voiceRec.start(); } catch(_) {}
+    }
+  };
+
+  try {
+    voiceRec.start();
+  } catch(e) {
+    voiceActive = false;
+    showToast('Voice Start Failed: ' + e.message, 'error');
+    return;
+  }
+
+  // UI feedback
+  document.getElementById('mic-btn').classList.add('recording');
+  const status = document.getElementById('mic-status');
+  status.classList.add('recording');
+  status.textContent = '● Listening — Release To Stop';
+  if (navigator.vibrate) navigator.vibrate(40);
+}
+
+function updateVoicePreview() {
+  const desc = document.getElementById('photo-desc');
+  const live = (voiceFinalText + voiceInterimText).trim();
+  const formatted = titleCaseWords(live);
+  // Combine base value with new dictation
+  const sep = voiceBaseValue && !voiceBaseValue.endsWith(' ') ? ' ' : '';
+  desc.value = voiceBaseValue + sep + formatted;
+}
+
+function stopVoice(commit = true) {
+  if (!voiceActive && !voiceRec) return;
+  voiceActive = false;
+  if (voiceRec) {
+    try { voiceRec.stop(); } catch(_) {}
+    voiceRec = null;
+  }
+  const desc = document.getElementById('photo-desc');
+  if (commit) {
+    // Final commit using only the truly-finalised text (drop interim)
+    const finalOnly = titleCaseWords(voiceFinalText.trim());
+    const sep = voiceBaseValue && !voiceBaseValue.endsWith(' ') && finalOnly ? ' ' : '';
+    desc.value = voiceBaseValue + (finalOnly ? sep + finalOnly : '');
+  } else {
+    desc.value = voiceBaseValue;
+  }
+  voiceFinalText = '';
+  voiceInterimText = '';
+  voiceBaseValue = '';
+
+  document.getElementById('mic-btn').classList.remove('recording');
+  const status = document.getElementById('mic-status');
+  status.classList.remove('recording');
+  status.textContent = '';
+}
+
+// Wire up press-and-hold on the mic button (touch + mouse)
+(function setupMic() {
+  const btn = document.getElementById('mic-btn');
+  if (!btn) return;
+  // Hide entirely if browser has no Speech API
+  if (!getSpeechRecognition()) {
+    btn.style.display = 'none';
+    return;
+  }
+  // Touch
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); startVoice(); }, { passive: false });
+  btn.addEventListener('touchend',   (e) => { e.preventDefault(); stopVoice(true); });
+  btn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopVoice(true); });
+  // Mouse
+  btn.addEventListener('mousedown',  (e) => { e.preventDefault(); startVoice(); });
+  btn.addEventListener('mouseup',    (e) => { e.preventDefault(); stopVoice(true); });
+  btn.addEventListener('mouseleave', () => { if (voiceActive) stopVoice(true); });
+  // Prevent context menu / selection on long-press
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+})();
+
 async function savePhotos() {
   if (!photos.length) return;
   const desc = document.getElementById('photo-desc').value.trim();
