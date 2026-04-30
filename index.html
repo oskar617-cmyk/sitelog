@@ -422,7 +422,7 @@
   </div>
   <div class="content">
     <div class="section-label">Select Job Site</div>
-    <div class="reorder-hint" id="reorder-hint" style="display:none">Tip: hold &amp; drag to reorder</div>
+    <div class="reorder-hint" id="reorder-hint" style="display:none">Tip: hold &amp; drag onto another job to swap</div>
     <div class="job-grid" id="job-grid"></div>
   </div>
 </div>
@@ -1040,12 +1040,13 @@ function onJobTouchEnd(e, card) {
 }
 
 function reorderJob(srcId, destId) {
+  // Swap the positions of the two jobs (not insert)
   const jobs = sortByUserOrder(getMyAuthorisedJobs());
   const fromIdx = jobs.findIndex(j => j.id === srcId);
   const toIdx = jobs.findIndex(j => j.id === destId);
-  if (fromIdx === -1 || toIdx === -1) return;
-  const [moved] = jobs.splice(fromIdx, 1);
-  jobs.splice(toIdx, 0, moved);
+  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+  // Swap
+  [jobs[fromIdx], jobs[toIdx]] = [jobs[toIdx], jobs[fromIdx]];
   saveJobOrder(jobs.map(j => j.id));
   renderJobs();
 }
