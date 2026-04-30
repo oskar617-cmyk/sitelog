@@ -54,6 +54,18 @@
   .topbar .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); font-size: .9rem; }
   .topbar .icon-btn:hover { border-color: var(--accent); }
   .topbar .icon-btn.admin { border-color: var(--admin); color: var(--admin); }
+  .topbar .round-back {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--accent); border: none; color: #fff;
+    font-size: 1.4rem; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 2px 8px rgba(15,99,52,.4);
+    transition: background .2s, transform .1s;
+  }
+  .topbar .round-back:hover { background: var(--accent-light); }
+  .topbar .round-back:active { transform: scale(.92); }
+  /* On photo screen, make title bigger and centered-ish */
+  #screen-photo .topbar .app-title { font-size: 1.4rem; letter-spacing: -.5px; }
   .user-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: .72rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
   .user-pill .dot { width: 7px; height: 7px; background: var(--success); border-radius: 50%; }
 
@@ -263,9 +275,9 @@
   #cam-video { width: 100%; height: 100%; object-fit: cover; }
   .cam-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: .9rem; background: #000; z-index: 1; padding: 20px; text-align: center; }
   .cam-top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 16px 20px; display: flex; align-items: center; gap: 12px; background: linear-gradient(to bottom, rgba(0,0,0,.7), transparent); z-index: 10; }
-  .cam-close { background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3); color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .cam-job-pill { background: rgba(0,0,0,.6); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 600; }
-  .cam-counter { background: rgba(15,99,52,.95); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 700; margin-left: auto; }
+  .cam-close { background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3); color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: auto; }
+  .cam-job-pill { background: rgba(0,0,0,.6); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .9rem; font-weight: 700; position: absolute; left: 50%; transform: translateX(-50%); }
+  .cam-counter { background: rgba(15,99,52,.95); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 700; flex-shrink: 0; }
   .cam-counter.full { background: rgba(255,92,92,.95); }
   .cam-thumb { width: 60px; height: 60px; border-radius: 8px; overflow: hidden; border: 2px solid #fff; position: relative; cursor: pointer; flex-shrink: 0; }
   .cam-thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -414,14 +426,10 @@
 <!-- PHOTO -->
 <div class="screen" id="screen-photo">
   <div class="topbar">
-    <button class="back-btn" onclick="showScreen('screen-jobs')">← Back</button>
-    <div class="app-title">Capture Photos</div>
+    <div class="app-title" id="ph-top-title">Job</div>
+    <button class="round-back" onclick="showScreen('screen-jobs')" aria-label="Back">←</button>
   </div>
   <div class="content">
-    <div class="job-header">
-      <div class="badge" id="ph-job-code">2504 LF</div>
-      <div class="jname" id="ph-job-name">Job Name</div>
-    </div>
     <div class="form-group">
       <div class="field-label">Description</div>
       <textarea class="desc-input" id="photo-desc" placeholder="e.g. Concrete Slab, Roof Frame, North Elevation..." rows="3"></textarea>
@@ -471,9 +479,9 @@
       <video id="cam-video" autoplay playsinline muted></video>
       <div class="cam-flash" id="cam-flash"></div>
       <div class="cam-top-bar">
-        <button class="cam-close" onclick="closeCamera()">✕</button>
-        <div class="cam-job-pill" id="cam-job-pill">Job</div>
         <div class="cam-counter" id="cam-counter">0 / 5</div>
+        <div class="cam-job-pill" id="cam-job-pill">Job</div>
+        <button class="cam-close" onclick="closeCamera()">✕</button>
       </div>
     </div>
     <div class="cam-thumbs" id="cam-thumbs"></div>
@@ -948,8 +956,7 @@ function reorderJob(srcId, destId) {
 function selectJob(id) {
   currentJob = cloudConfig.jobs.find(j => j.id === id);
   if (!currentJob) return;
-  document.getElementById('ph-job-code').textContent = currentJob.code;
-  document.getElementById('ph-job-name').textContent = currentJob.name || currentJob.code;
+  document.getElementById('ph-top-title').textContent = currentJob.code;
   resetSessionSilent();
   showScreen('screen-photo');
 }
