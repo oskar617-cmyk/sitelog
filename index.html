@@ -647,7 +647,8 @@ let driveId = null;           // SharePoint drive (Documents library) ID
 
 function loadLocal() { return JSON.parse(localStorage.getItem('sitelog_local') || '{}'); }
 function saveLocal(d) { localStorage.setItem('sitelog_local', JSON.stringify(d)); }
-function getClientId() { return loadLocal().clientId || ''; }
+const HARDCODED_CLIENT_ID = '98663400-8356-49f7-88cb-c37feb311e82';
+function getClientId() { return loadLocal().clientId || HARDCODED_CLIENT_ID; }
 function getAdminEmail() { return (cloudConfig?.adminEmail || ADMIN_EMAIL_DEFAULT).toLowerCase(); }
 function getMyName() {
   const local = loadLocal();
