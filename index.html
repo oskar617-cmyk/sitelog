@@ -188,13 +188,14 @@
   .gps-row .gps-text small { display: block; font-size: .82rem; color: var(--text); margin-top: 4px; font-weight: 400; line-height: 1.35; word-wrap: break-word; }
   .gps-row .gps-text small.dim { color: var(--text-dim); font-style: italic; }
   .gps-refresh {
-    flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
-    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%;
+    background: var(--accent); border: none; color: #fff;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: transform .3s, background .2s, border-color .2s;
+    transition: transform .3s, background .2s;
+    box-shadow: 0 2px 8px rgba(15,99,52,.4);
   }
-  .gps-refresh svg { width: 18px; height: 18px; }
-  .gps-refresh:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .gps-refresh svg { width: 22px; height: 22px; }
+  .gps-refresh:hover { background: var(--accent-light); }
   .gps-refresh:active { transform: scale(.92); }
   .gps-refresh.spinning svg { animation: gpsSpin .8s linear infinite; }
   @keyframes gpsSpin { to { transform: rotate(360deg); } }
@@ -507,16 +508,16 @@
         <div>GPS Stamp</div>
         <small id="gps-status">Off</small>
       </div>
+      <label class="gps-toggle">
+        <input type="checkbox" id="gps-toggle" onchange="toggleGPS(this.checked)">
+        <span class="gps-slider"></span>
+      </label>
       <button class="gps-refresh" id="gps-refresh" onclick="refreshGPS()" aria-label="Refresh location" title="Refresh location">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12a9 9 0 1 1-3-6.7"/>
           <polyline points="21 4 21 10 15 10"/>
         </svg>
       </button>
-      <label class="gps-toggle">
-        <input type="checkbox" id="gps-toggle" onchange="toggleGPS(this.checked)">
-        <span class="gps-slider"></span>
-      </label>
     </div>
     <div class="upload-progress" id="upload-progress">
       <div class="progress-label" id="progress-label">Uploading...</div>
