@@ -1,2236 +1,881 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0f6334">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>SiteLog</title>
-<link rel="manifest" href="manifest.json">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-<!-- MSAL Library -->
-<script type="text/javascript" src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"
-  integrity="sha384-PARf28kmic36Ve+O3DnUerRXFtOQ7ZDqRDGpLcbljly5/N39T2OV3kt3QsWOKeAX"
-  crossorigin="anonymous"></script>
-<script type="text/javascript">
-  if (typeof msal === 'undefined') {
-    document.write(unescape("%3Cscript src='https://alcdn.msftauth.net/browser/2.35.0/js/msal-browser.min.js' type='text/javascript'%3E%3C/script%3E"));
-  }
-</script>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1410" />
+<title>AH Estimating</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.7.1/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
-    --bg: #0f1117; --surface: #1a1f2e; --surface2: #222840; --border: #2e3558;
-    --accent: #0f6334;
-    --accent-light: #14823f;
-    --accent2: #4fc3f7;
-    --admin: #b066ff;
-    --text: #e8eaf0; --text-dim: #7b82a0;
-    --danger: #ff5c5c; --success: #4caf8a;
-    --radius: 12px;
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --bg: #0f1410; --bg-2: #161c18; --bg-3: #1f2722; --line: #2a332e;
+    --text: #e8efe9; --text-2: #9aa89e; --text-3: #6a7770;
+    --green: #7fff7f; --green-dim: #5acc5a; --green-bg: rgba(127, 255, 127, 0.08);
+    --red: #ff6b6b; --red-bg: rgba(255, 107, 107, 0.1);
+    --amber: #ffd166; --amber-bg: rgba(255, 209, 102, 0.1);
+    --blue: #6bb6ff; --blue-bg: rgba(107, 182, 255, 0.1);
+    --purple: #c47bff; --purple-bg: rgba(196, 123, 255, 0.1);
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.6);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { overscroll-behavior-y: contain; overscroll-behavior-x: contain; }
-  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5;
+    overflow-x: hidden; overscroll-behavior-y: none;
+  }
+  button { font-family: inherit; font-size: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  input, textarea, select {
+    font-family: inherit; font-size: inherit; color: inherit;
+    background: var(--bg-3); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; width: 100%;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--green-dim); }
+  input::placeholder, textarea::placeholder { color: var(--text-3); }
+  textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+  select { cursor: pointer; }
 
-  #loader { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity .4s; }
-  #loader .logo { font-weight: 800; font-size: 2rem; color: var(--accent); letter-spacing: -1px; }
-  #loader .sub { color: var(--text-dim); font-size: .75rem; margin-top: 6px; letter-spacing: 2px; text-transform: uppercase; }
-  #loader .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin-top: 32px; }
-  #loader .msg { color: var(--text-dim); font-size: .75rem; margin-top: 16px; text-align: center; padding: 0 20px; }
+  .top-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg-2); border-bottom: 1px solid var(--line);
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px; min-height: 60px;
+  }
+  .back-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.15s;
+  }
+  .back-btn:hover { background: var(--line); }
+  .back-btn svg { width: 18px; height: 18px; stroke: var(--text); }
+  .top-title { font-size: 17px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-title.green { color: var(--green); }
+  .top-actions { display: flex; gap: 8px; align-items: center; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; flex-shrink: 0; position: relative;
+  }
+  .icon-btn:hover { background: var(--line); }
+  .icon-btn svg { width: 18px; height: 18px; stroke: var(--text); }
+  .icon-btn.primary { background: var(--green); }
+  .icon-btn.primary svg { stroke: var(--bg); }
+  .icon-btn.primary:hover { background: var(--green-dim); }
+  .icon-btn .badge-dot {
+    position: absolute; top: 4px; right: 4px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--red);
+  }
+
+  .screen { min-height: 100vh; min-height: 100dvh; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+  .content { flex: 1; padding: 16px; }
+  .content-narrow { max-width: 720px; margin: 0 auto; width: 100%; }
+  .content-wide { max-width: 960px; margin: 0 auto; width: 100%; }
+
+  #login-screen {
+    align-items: center; justify-content: center; padding: 24px; text-align: center;
+    background: radial-gradient(ellipse at top, rgba(127, 255, 127, 0.05), transparent 60%);
+  }
+  .login-logo {
+    width: 96px; height: 96px; border-radius: 24px;
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dim) 100%);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px; color: var(--bg);
+    font-weight: 700; font-size: 36px;
+    box-shadow: 0 8px 32px rgba(127, 255, 127, 0.25);
+  }
+  .login-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .login-sub { color: var(--text-2); font-size: 15px; margin-bottom: 40px; max-width: 320px; }
+
+  .btn-primary {
+    background: var(--green); color: var(--bg); font-weight: 600;
+    padding: 14px 28px; border-radius: 12px; font-size: 16px;
+    transition: transform 0.1s, box-shadow 0.15s;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 16px rgba(127, 255, 127, 0.3); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+  .btn-primary.small { padding: 8px 14px; font-size: 14px; border-radius: 8px; }
+  .btn-secondary {
+    background: var(--bg-3); color: var(--text);
+    padding: 12px 20px; border-radius: 10px; font-weight: 500;
+    transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-secondary:hover:not(:disabled) { background: var(--line); }
+  .btn-secondary.small { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+  .btn-danger {
+    background: var(--red-bg); color: var(--red);
+    padding: 12px 20px; border-radius: 10px; font-weight: 500;
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-danger:hover { background: rgba(255, 107, 107, 0.2); }
+  .btn-danger.small { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  #awaiting-screen { align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  .awaiting-icon {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: var(--amber-bg);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .awaiting-icon svg { width: 40px; height: 40px; stroke: var(--amber); }
+
+  .jobs-list { display: flex; flex-direction: column; gap: 8px; }
+  .job-card {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .job-card:hover { border-color: var(--green-dim); }
+  .job-card:active { transform: scale(0.99); }
+  .job-code { font-weight: 600; color: var(--green); font-size: 13px; letter-spacing: 0.5px; }
+  .job-address { font-size: 16px; font-weight: 500; }
+
+  .empty-state { text-align: center; padding: 60px 24px; color: var(--text-2); }
+
+  .admin-banner {
+    background: var(--purple-bg); border: 1px solid rgba(196, 123, 255, 0.3);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+    font-size: 13px; color: var(--purple);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-3); border-radius: 18px;
+    padding: 4px 10px 4px 4px; cursor: pointer; transition: background 0.15s;
+  }
+  .user-chip:hover { background: var(--line); }
+  .user-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--green); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px;
+  }
+  .user-name { font-size: 13px; color: var(--text-2); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; }
+  .form-hint { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .form-error { font-size: 12px; color: var(--red); margin-top: 4px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  input.invalid { border-color: var(--red); }
+
+  .email-chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 8px;
+    min-height: 44px; align-items: center;
+  }
+  .email-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 16px; padding: 4px 4px 4px 10px; font-size: 13px; max-width: 100%;
+  }
+  .email-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .email-chip.locked .email-chip-text { padding-right: 8px; }
+  .email-chip-remove {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .email-chip-remove:hover { background: var(--red-bg); }
+  .email-chip-remove svg { width: 12px; height: 12px; stroke: var(--text-2); }
+  .email-chip-remove:hover svg { stroke: var(--red); }
+  .email-chip-add {
+    background: transparent; border: 1px dashed var(--line); border-radius: 16px;
+    padding: 4px 12px; font-size: 13px; color: var(--text-2);
+    transition: border-color 0.15s, color 0.15s;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .email-chip-add:hover { border-color: var(--green-dim); color: var(--green); }
+
+  .email-search-wrap { position: relative; }
+  .email-suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px;
+    max-height: 240px; overflow-y: auto; z-index: 50;
+    box-shadow: var(--shadow-strong);
+  }
+  .email-suggestion { padding: 10px 12px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--line); }
+  .email-suggestion:last-child { border-bottom: none; }
+  .email-suggestion:hover { background: var(--bg-3); }
+  .email-suggestion-name { font-weight: 500; font-size: 14px; }
+  .email-suggestion-mail { font-size: 12px; color: var(--text-2); }
+  .email-suggestion-empty, .email-suggestion-loading {
+    padding: 12px; text-align: center; color: var(--text-3); font-size: 13px;
+  }
+  .email-suggestion-loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  .job-header {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .job-header-code { font-size: 13px; color: var(--green); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .job-header-address { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+  .job-header-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--text-2); }
+  .job-header-meta a { color: var(--blue); text-decoration: none; }
+  .job-header-meta a:hover { text-decoration: underline; }
+
+  .section-title {
+    font-size: 14px; font-weight: 600; color: var(--text-2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 24px 0 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .info-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+
+  /* ====== SETTINGS ====== */
+  .settings-tabs {
+    display: flex; gap: 4px;
+    background: var(--bg-2); border-radius: 12px; padding: 4px;
+    margin-bottom: 16px; overflow-x: auto;
+    border: 1px solid var(--line);
+  }
+  .settings-tab {
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    color: var(--text-2); cursor: pointer; white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .settings-tab:hover { color: var(--text); }
+  .settings-tab.active { background: var(--bg-3); color: var(--green); }
+
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+
+  .trade-tag {
+    background: var(--green-bg); color: var(--green);
+    border-radius: 6px; padding: 1px 6px; font-size: 11px; font-weight: 500;
+  }
+
+  /* ====== CATALOG (combined trades/suppliers) ====== */
+  .catalog-header {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 80px 80px 120px;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg-3);
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .catalog-header > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Pad first header past the expand arrow so it aligns with the category name text */
+  .catalog-header .col-category { padding-left: 30px; }
+  .catalog-header .col-days { text-align: center; }
+  .catalog-header .col-actions { text-align: right; }
+
+  .catalog-item {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+  .catalog-row {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 80px 80px 120px;
+    gap: 12px;
+    padding: 10px 12px;
+    align-items: center;
+  }
+  .catalog-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .catalog-toggle {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.15s;
+    color: var(--text-3);
+  }
+  .catalog-toggle svg { width: 14px; height: 14px; }
+  .catalog-item.expanded .catalog-toggle { transform: rotate(90deg); color: var(--green); }
+  .catalog-name {
+    font-weight: 500; font-size: 14px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .catalog-companies-count {
+    background: var(--bg-3); color: var(--text-2);
+    border-radius: 10px; padding: 1px 8px;
+    font-size: 11px; font-weight: 600;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .catalog-rename-inline {
+    width: 22px; height: 22px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .catalog-rename-inline svg { width: 11px; height: 11px; }
+  .catalog-name-cell:hover .catalog-rename-inline { opacity: 0.6; }
+  .catalog-rename-inline:hover { opacity: 1 !important; }
+  .catalog-row select, .catalog-row input {
+    padding: 6px 10px; font-size: 13px;
+  }
+  .catalog-days-input {
+    width: 64px; padding: 6px 8px; font-size: 13px; text-align: center;
+  }
+  .catalog-actions {
+    display: flex; gap: 4px; justify-content: flex-end; flex-shrink: 0;
+  }
+  .icon-btn-tiny {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .icon-btn-tiny:hover { background: var(--line); }
+  .icon-btn-tiny.danger:hover { background: var(--red-bg); }
+  .icon-btn-tiny.danger:hover svg { stroke: var(--red); }
+  .icon-btn-tiny svg { width: 14px; height: 14px; stroke: var(--text-2); }
+
+  .catalog-companies {
+    display: none;
+    padding: 0 12px 12px 50px;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  .catalog-item.expanded .catalog-companies { display: block; }
+  .company-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    min-height: 48px;
+  }
+  .company-row:last-of-type { border-bottom: none; }
+  .company-row.inactive { opacity: 0.55; }
+  .company-info { flex: 1; min-width: 0; }
+  .company-name { font-weight: 500; font-size: 14px; }
+  .company-meta {
+    font-size: 12px; color: var(--text-3); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .company-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .add-company-btn {
+    width: 100%;
+    padding: 8px; margin-top: 8px;
+    background: transparent;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    color: var(--text-2);
+    font-size: 13px;
+    transition: border-color 0.15s, color 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .add-company-btn:hover { border-color: var(--green-dim); color: var(--green); }
+
+  /* Mobile: stack columns */
+  @media (max-width: 720px) {
+    .catalog-header { display: none; }
+    .catalog-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .catalog-row > * { width: 100%; }
+    .catalog-actions { justify-content: flex-start; }
+    .catalog-companies { padding: 0 12px 12px 12px; }
+  }
+
+  /* ====== EMAIL TEMPLATES TAB ====== */
+  .tpl-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 240px;
+    gap: 12px;
+    align-items: start;
+  }
+  .tpl-sidebar, .tpl-placeholders {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  .tpl-sidebar-list { display: flex; flex-direction: column; gap: 2px; }
+  .tpl-sidebar-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+    gap: 8px;
+  }
+  .tpl-sidebar-item:hover { background: var(--bg-3); }
+  .tpl-sidebar-item.active { background: var(--bg-3); }
+  .tpl-sidebar-item.active .tpl-sidebar-label { color: var(--green); font-weight: 600; }
+  .tpl-sidebar-label {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tpl-sidebar-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .tpl-sidebar-tag-default { background: var(--purple-bg); color: var(--purple); }
+  .tpl-sidebar-tag-override { background: var(--green-bg); color: var(--green); }
+  .tpl-sidebar-tag-inherit { background: var(--bg-3); color: var(--text-3); }
+
+  .tpl-editor {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .tpl-editor-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  #tpl-body {
+    width: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 360px;
+  }
+
+  .tpl-placeholder-list { display: flex; flex-direction: column; gap: 2px; }
+  .tpl-placeholder-btn {
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--line);
+    transition: border-color 0.15s, background 0.15s;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .tpl-placeholder-btn:hover { border-color: var(--green-dim); background: var(--bg-3); }
+  .tpl-placeholder-btn code {
+    color: var(--green); font-size: 12px; font-family: ui-monospace, monospace;
+  }
+  .tpl-placeholder-label {
+    color: var(--text-3); font-size: 11px;
+  }
+
+  /* Email preview modal */
+  .email-preview {
+    background: #ffffff;
+    color: #1a1a1a;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .email-preview-headers {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .email-preview-row { margin-bottom: 4px; }
+  .email-preview-label { color: #777; display: inline-block; min-width: 60px; }
+  .email-preview-body {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .email-preview-body a { color: #0066cc; }
+
+  @media (max-width: 900px) {
+    .tpl-layout { grid-template-columns: 1fr; }
+    .tpl-sidebar, .tpl-placeholders { max-height: 200px; }
+  }
+
+  .filter-bar {
+    display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .filter-bar input { flex: 1; min-width: 200px; }
+  .filter-bar select { width: auto; min-width: 160px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+    z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow-strong);
+  }
+  .modal.wide { max-width: 720px; }
+  .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .modal-body { color: var(--text-2); margin-bottom: 16px; font-size: 14px; line-height: 1.6; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px; }
+
+  /* ====== MULTISELECT ====== */
+  .multi-chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 8px;
+    min-height: 44px; align-items: center;
+  }
+  .multi-chip {
+    background: var(--green-bg); color: var(--green);
+    border-radius: 16px; padding: 4px 4px 4px 10px;
+    font-size: 13px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .multi-chip .x {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(127,255,127,0.15);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .multi-chip .x:hover { background: rgba(127,255,127,0.3); }
+  .multi-chip svg { width: 10px; height: 10px; stroke: var(--green); }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: var(--bg-3); border: 1px solid var(--line); color: var(--text);
+    padding: 12px 20px; border-radius: 24px; font-size: 14px; font-weight: 500;
+    box-shadow: var(--shadow); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000; pointer-events: none; max-width: 90vw; text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.success { border-color: var(--green-dim); color: var(--green); }
+
+  .loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 24px; color: var(--text-2); gap: 16px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--bg-3); border-top-color: var(--green);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  .spinner-sm {
+    width: 14px; height: 14px;
+    border: 2px solid var(--bg-3); border-top-color: var(--green);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .screen { display: none; min-height: 100vh; flex-direction: column; animation: fadeIn .3s ease; }
-  .screen.active { display: flex; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .progress-list { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+  .progress-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: var(--text-2); }
+  .progress-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .progress-icon svg { width: 14px; height: 14px; }
+  .progress-item.pending .progress-icon { color: var(--text-3); }
+  .progress-item.active { color: var(--text); }
+  .progress-item.done { color: var(--green); }
+  .progress-item.failed { color: var(--red); }
 
-  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
-  .topbar .app-title { font-weight: 800; font-size: 1.1rem; color: var(--accent); flex: 1; }
-  .topbar .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); font-size: .9rem; }
-  .topbar .icon-btn:hover { border-color: var(--accent); }
-  .topbar .icon-btn.admin { border-color: var(--admin); color: var(--admin); }
-  .topbar .round-back {
-    width: 44px; height: 44px; border-radius: 50%;
-    background: var(--accent); border: none; color: #fff;
-    font-size: 1.4rem; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; box-shadow: 0 2px 8px rgba(15,99,52,.4);
-    transition: background .2s, transform .1s;
+  .toggle {
+    width: 36px; height: 20px; border-radius: 10px;
+    background: var(--bg-3); position: relative; cursor: pointer;
+    transition: background 0.15s; flex-shrink: 0;
   }
-  .topbar .round-back:hover { background: var(--accent-light); }
-  .topbar .round-back:active { transform: scale(.92); }
-  /* On photo screen, make title bigger and centered-ish */
-  #screen-photo .topbar .app-title { font-size: 1.4rem; letter-spacing: -.5px; }
-  .user-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: .72rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
-  .user-pill .dot { width: 7px; height: 7px; background: var(--success); border-radius: 50%; }
-
-  .content { flex: 1; padding: 20px; max-width: 600px; width: 100%; margin: 0 auto; }
-
-  #screen-login, #screen-pending, #screen-firstrun, #screen-error { align-items: center; justify-content: center; padding: 40px 24px; }
-  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center; }
-  .login-icon { font-size: 3rem; margin-bottom: 16px; }
-  .login-card h1 { font-weight: 800; font-size: 1.6rem; margin-bottom: 6px; }
-  .login-card p { color: var(--text-dim); font-size: .82rem; line-height: 1.6; margin-bottom: 32px; }
-  .ms-btn { background: #2f72c5; color: #fff; border: none; border-radius: 8px; padding: 14px 24px; font-weight: 600; font-size: .95rem; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background .2s, transform .1s; }
-  .ms-btn:hover { background: #2563b0; }
-  .ms-btn:active { transform: scale(.98); }
-  .ms-logo { width: 20px; height: 20px; }
-
-  .section-label { font-size: .7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; font-weight: 600; }
-
-  .job-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 8px 4px; }
-  @media (min-width: 480px) { .job-grid { grid-template-columns: repeat(3, 1fr); } }
-  .job-card {
-    aspect-ratio: 1;
-    background: var(--accent);
-    border: none;
-    border-radius: 50%;
-    padding: 12px;
-    cursor: pointer;
-    transition: transform .15s, background .2s, box-shadow .2s, opacity .2s;
-    display: flex; align-items: center; justify-content: center; text-align: center;
-    color: #fff; font-weight: 700;
-    box-shadow: 0 4px 16px rgba(15,99,52,.3);
-    word-break: break-word;
-    touch-action: manipulation;
-    user-select: none;
-    -webkit-user-select: none;
-    position: relative;
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--text-3);
+    transition: transform 0.15s, background 0.15s;
   }
-  .job-card:hover { background: var(--accent-light); box-shadow: 0 6px 24px rgba(15,99,52,.5); }
-  .job-card:active { transform: scale(.95); }
-  .job-card .job-code {
-    font-size: 1.3rem; line-height: 1.2;
-    color: #fff; font-weight: 700;
-    letter-spacing: -.5px;
-    pointer-events: none;
-  }
-  .job-card.dragging { opacity: .4; transform: scale(1.05); z-index: 10; box-shadow: 0 12px 32px rgba(0,0,0,.6); }
-  .job-card.drag-over { box-shadow: 0 0 0 4px var(--accent2), 0 4px 16px rgba(15,99,52,.3); }
-  .reorder-hint { font-size: .7rem; color: var(--text-dim); text-align: center; margin-top: -6px; margin-bottom: 14px; font-style: italic; }
-  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: .85rem; border: 2px dashed var(--border); border-radius: var(--radius); }
-  .empty-state .ico { font-size: 2.2rem; margin-bottom: 10px; }
+  .toggle.on { background: var(--green-bg); }
+  .toggle.on::after { transform: translateX(16px); background: var(--green); }
 
-  .job-header { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
-  .job-header .badge { background: var(--accent); color: #fff; border-radius: 6px; padding: 4px 10px; font-weight: 700; font-size: .85rem; }
-  .job-header .jname { font-size: .9rem; color: var(--text-dim); }
-
-  .field-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
-  .desc-wrap { display: flex; gap: 10px; align-items: stretch; }
-  .desc-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; color: var(--text); font-family: var(--font); font-size: .95rem; resize: none; min-height: 100px; transition: border-color .2s; }
-  .desc-input:focus { outline: none; border-color: var(--accent2); }
-  .desc-input::placeholder { color: var(--text-dim); }
-  .mic-btn {
-    flex-shrink: 0;
-    width: 84px; min-height: 100px;
-    border-radius: var(--radius);
-    background: var(--accent); border: none; color: #fff;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: transform .1s, background .2s, box-shadow .2s;
-    box-shadow: 0 2px 8px rgba(15,99,52,.4);
-    user-select: none; -webkit-user-select: none;
-    touch-action: manipulation;
-    padding: 0;
-  }
-  .mic-btn svg { width: 40px; height: 40px; }
-  .mic-btn:hover { background: var(--accent-light); }
-  .mic-btn:active, .mic-btn.recording { background: var(--danger); transform: scale(1.04); box-shadow: 0 0 0 6px rgba(255,92,92,.25); }
-  .mic-btn.recording { animation: micPulse 1.2s ease-in-out infinite; }
-  .mic-btn.unsupported { background: var(--surface2); color: var(--text-dim); cursor: not-allowed; box-shadow: none; }
-  @keyframes micPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255,92,92,.45); }
-    50%      { box-shadow: 0 0 0 12px rgba(255,92,92,0); }
-  }
-  .mic-status { font-size: .75rem; color: var(--text-dim); margin-top: 6px; min-height: 16px; padding-left: 2px; }
-  .mic-status.recording { color: var(--danger); font-weight: 600; }
-
-  .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
-  .photo-btn { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px 10px; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text); }
-  .photo-btn:hover { border-color: var(--accent); }
-  .photo-btn:active { transform: scale(.97); }
-  .photo-btn.primary { border-color: var(--accent); background: rgba(15,99,52,.12); }
-  .photo-btn .btn-icon { font-size: 1.8rem; }
-  .photo-btn .btn-label { font-size: .8rem; color: var(--text); text-align: center; font-weight: 500; }
-  .photo-btn .btn-count { font-weight: 700; font-size: .85rem; color: var(--accent-light); }
-  .photo-btn.disabled { opacity: .4; pointer-events: none; }
-
-  .thumb-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
-  .thumb-wrap { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: pointer; }
-  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
-  .thumb-wrap:hover { border-color: var(--accent); }
-  .thumb-remove { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,.85); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; font-size: .75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; z-index: 2; }
-  .thumb-empty { aspect-ratio: 1; border-radius: 8px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 1.2rem; }
-
-  /* LIGHTBOX */
-  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.97); z-index: 800; display: none; flex-direction: column; }
-  .lightbox.open { display: flex; }
-  .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.15); border: none; color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; z-index: 10; }
-  .lightbox-stage { flex: 1; position: relative; overflow: hidden; touch-action: pan-y; user-select: none; }
-  .lightbox-track { display: flex; height: 100%; transition: transform .3s cubic-bezier(.2,.9,.3,1); will-change: transform; }
-  .lightbox-track.no-anim { transition: none; }
-  .lightbox-slide { flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .lightbox-slide img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
-  .lightbox-info { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,.7); padding: 8px 14px; border-radius: 16px; color: #fff; font-size: .8rem; font-weight: 600; z-index: 10; }
-  .lightbox-thumbs { padding: 10px; display: flex; gap: 6px; justify-content: center; overflow-x: auto; background: rgba(0,0,0,.6); }
-  .lightbox-thumbs::-webkit-scrollbar { display: none; }
-  .lightbox-thumb { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; cursor: pointer; opacity: .55; transition: opacity .15s, border-color .15s; }
-  .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .lightbox-thumb.active { opacity: 1; border-color: var(--accent); }
-
-  .gps-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-  .gps-row .gps-icon { font-size: 1.3rem; flex-shrink: 0; }
-  .gps-row .gps-text { font-size: .85rem; color: var(--text); flex: 1; font-weight: 600; min-width: 0; }
-  .gps-row .gps-text small { display: block; font-size: .82rem; color: var(--text); margin-top: 4px; font-weight: 400; line-height: 1.35; word-wrap: break-word; }
-  .gps-row .gps-text small.dim { color: var(--text-dim); font-style: italic; }
-  .gps-refresh {
-    flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%;
-    background: var(--accent); border: none; color: #fff;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: transform .3s, background .2s;
-    box-shadow: 0 2px 8px rgba(15,99,52,.4);
-  }
-  .gps-refresh svg { width: 22px; height: 22px; }
-  .gps-refresh:hover { background: var(--accent-light); }
-  .gps-refresh:active { transform: scale(.92); }
-  .gps-refresh.spinning svg { animation: gpsSpin .8s linear infinite; }
-  @keyframes gpsSpin { to { transform: rotate(360deg); } }
-  .gps-toggle { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
-  .gps-toggle input { opacity: 0; width: 0; height: 0; }
-  .gps-slider { position: absolute; inset: 0; background: var(--border); border-radius: 11px; cursor: pointer; transition: background .2s; }
-  .gps-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
-  .gps-toggle input:checked + .gps-slider { background: var(--success); }
-  .gps-toggle input:checked + .gps-slider:before { transform: translateX(16px); }
-
-  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; padding-bottom: 32px; }
-  .btn { border: none; border-radius: var(--radius); padding: 16px; font-weight: 700; font-size: .95rem; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font); }
-  .btn-save { background: var(--accent); color: #fff; }
-  .btn-save:hover { background: var(--accent-light); }
-  .btn-save:disabled { background: var(--border); color: var(--text-dim); pointer-events: none; }
-  .btn-reset { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
-  .btn-reset:hover { border-color: var(--danger); color: var(--danger); }
-
-  .settings-section { margin-bottom: 28px; }
-  .settings-section h3 { font-weight: 700; font-size: 1rem; margin-bottom: 14px; }
-  .settings-section h3.admin { color: var(--admin); }
-  .settings-section h3 .badge-admin { display: inline-block; background: var(--admin); color: #fff; font-size: .65rem; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; letter-spacing: 1px; font-weight: 600; }
-  .form-group { margin-bottom: 14px; }
-  .form-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; display: block; font-weight: 600; }
-  .form-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-family: var(--font); font-size: .9rem; transition: border-color .2s; }
-  .form-input:focus { outline: none; border-color: var(--accent2); }
-
-  .save-settings-btn { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 16px; font-weight: 700; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 10px; transition: background .2s; font-family: var(--font); }
-  .save-settings-btn:hover { background: var(--accent-light); }
-  .save-settings-btn.admin { background: var(--admin); color: #fff; }
-  .save-settings-btn.admin:hover { background: #9a4ee0; }
-
-  .info-box { background: var(--surface); border-left: 3px solid var(--accent2); border-radius: 6px; padding: 12px 14px; font-size: .8rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; }
-  .info-box strong { color: var(--text); }
-
-  .divider { height: 1px; background: var(--border); margin: 24px 0; }
-
-  .admin-section { background: rgba(176,102,255,.06); border: 1px solid rgba(176,102,255,.3); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
-
-  .mgr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
-  .mgr-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .mgr-row .mgr-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--accent-light); font-weight: 700; }
-  .mgr-row .mgr-info { flex: 1; }
-  .mgr-row .mgr-name { font-size: .9rem; color: var(--text); }
-  .mgr-row .mgr-email { font-size: .72rem; color: var(--text-dim); word-break: break-all; }
-  .mgr-row .mgr-status { font-size: .65rem; padding: 3px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; letter-spacing: .5px; }
-  .mgr-row .mgr-status.active { background: rgba(76,175,138,.15); color: var(--success); }
-  .mgr-row .mgr-status.pending { background: rgba(15,99,52,.18); color: var(--accent-light); }
-
-  .job-checkboxes { display: flex; flex-wrap: wrap; gap: 6px; }
-  .job-checkbox { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 16px; padding: 5px 12px; cursor: pointer; font-size: .75rem; color: var(--text-dim); transition: all .15s; }
-  .job-checkbox.active { background: rgba(15,99,52,.18); border-color: var(--accent); color: var(--accent-light); font-weight: 600; }
-  .job-checkbox input { display: none; }
-
-  .admin-job-list { display: flex; flex-direction: column; gap: 8px; }
-  .admin-job-row { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .admin-job-row .ajr-code { font-weight: 700; color: var(--accent-light); min-width: 75px; font-size: .9rem; }
-  .admin-job-row .ajr-info { flex: 1; min-width: 100px; font-size: .75rem; color: var(--text-dim); word-break: break-all; }
-  .admin-job-row .ajr-actions { display: flex; gap: 6px; }
-  .admin-job-row.archived .ajr-code { color: var(--text-dim); }
-  .mini-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: .72rem; transition: all .15s; font-family: var(--font); }
-  .mini-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-  .mini-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
-
-  .add-job-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
-  .add-job-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-
-  .tabs { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface); padding: 4px; border-radius: 10px; }
-  .tab { flex: 1; padding: 10px; text-align: center; font-size: .8rem; cursor: pointer; border-radius: 7px; color: var(--text-dim); transition: all .15s; font-weight: 600; }
-  .tab.active { background: var(--surface2); color: var(--text); }
-
-  /* TOAST — bigger and more visible now */
-  #toast {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(.85); opacity: 0; pointer-events: none;
-    background: #1a1f2e; border: 2px solid var(--border);
-    border-radius: 16px; padding: 24px 28px;
-    font-size: 1rem; color: var(--text);
-    transition: transform .3s, opacity .3s; z-index: 9999;
-    max-width: 90vw; min-width: 280px; text-align: center;
-    box-shadow: 0 16px 48px rgba(0,0,0,.6);
-    font-weight: 500;
-  }
-  #toast.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  #toast.success { border-color: var(--success); background: var(--success); color: #fff; font-size: 1.15rem; font-weight: 600; padding: 28px 32px; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
-  #toast.success .big-icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
-  #toast.error { border-color: var(--danger); background: var(--danger); color: #fff; }
-
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); align-items: center; justify-content: center; z-index: 500; padding: 24px; display: none; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 360px; text-align: center; }
-  .modal h3 { font-weight: 700; margin-bottom: 10px; }
-  .modal p { color: var(--text-dim); font-size: .85rem; line-height: 1.6; margin-bottom: 24px; }
-  .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .modal-btn { border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; font-size: .9rem; font-family: var(--font); }
-  .modal-btn.confirm { background: var(--danger); color: #fff; }
-  .modal-btn.cancel { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-
-  .upload-progress { display: none; margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; gap: 10px; flex-direction: column; }
-  .upload-progress.visible { display: flex; }
-  .progress-bar-wrap { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
-  .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; width: 0%; }
-  .progress-label { font-size: .78rem; color: var(--text-dim); }
-
-  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; color: var(--text-dim); font-family: var(--font); font-size: .8rem; cursor: pointer; transition: all .2s; }
-  .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
-
-  .pending-icon { font-size: 4rem; margin-bottom: 16px; }
-  .err-detail { background: var(--surface2); border-left: 3px solid var(--danger); padding: 12px; border-radius: 6px; font-size: .75rem; color: var(--text-dim); margin: 16px 0; text-align: left; word-break: break-all; }
-
-  /* IN-APP CAMERA */
-  #screen-camera { background: #000; }
-  .cam-container { position: relative; width: 100%; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
-  .cam-video-wrap { flex: 1; position: relative; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; min-height: 0; }
-  #cam-video { width: 100%; height: 100%; object-fit: cover; }
-  .cam-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: .9rem; background: #000; z-index: 1; padding: 20px; text-align: center; }
-  .cam-top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 16px 20px; display: flex; align-items: center; gap: 12px; background: linear-gradient(to bottom, rgba(0,0,0,.7), transparent); z-index: 10; }
-  .cam-close { background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3); color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: auto; }
-  .cam-job-pill { background: rgba(0,0,0,.6); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .9rem; font-weight: 700; position: absolute; left: 50%; transform: translateX(-50%); }
-  .cam-counter { background: rgba(15,99,52,.95); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 700; flex-shrink: 0; }
-  .cam-counter.full { background: rgba(255,92,92,.95); }
-  .cam-thumb { width: 60px; height: 60px; border-radius: 8px; overflow: hidden; border: 2px solid #fff; position: relative; cursor: pointer; flex-shrink: 0; }
-  .cam-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .cam-thumb-x { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,.9); border: none; color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: .65rem; cursor: pointer; line-height: 1; }
-  .cam-shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 4px solid rgba(255,255,255,.4); cursor: pointer; flex-shrink: 0; transition: transform .1s; box-shadow: 0 0 0 4px rgba(0,0,0,.3); }
-  .cam-shutter:active { transform: scale(.92); }
-  .cam-shutter:disabled { background: var(--text-dim); pointer-events: none; }
-  .cam-side-btn { background: var(--accent); border: none; color: #fff; padding: 14px 22px; border-radius: 12px; font-size: .9rem; font-weight: 700; font-family: var(--font); cursor: pointer; min-width: 100px; flex-shrink: 0; }
-  .cam-side-btn:hover { background: var(--accent-light); }
-  .cam-side-btn.empty { background: rgba(255,255,255,.15); color: #fff; }
-  .cam-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 20; transition: opacity .15s; }
-  .cam-flash.flash { opacity: .8; }
-
-  /* PORTRAIT (default) — thumbs above the bottom bar at lower section */
-  .cam-thumbs { padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; background: rgba(0,0,0,.85); flex-shrink: 0; align-items: center; min-height: 84px; }
-  .cam-thumbs::-webkit-scrollbar { display: none; }
-  .cam-thumbs:empty::before { content: 'Photos appear here as you take them'; color: rgba(255,255,255,.4); font-size: .75rem; margin: auto; }
-  .cam-bottom-bar { padding: 16px 20px 24px; background: rgba(0,0,0,.95); display: flex; align-items: center; justify-content: space-between; gap: 16px; z-index: 5; flex-shrink: 0; }
-
-  /* LANDSCAPE — thumbs and controls all on the right side */
-  @media (orientation: landscape) {
-    .cam-container { flex-direction: row; }
-    .cam-thumbs {
-      flex-direction: column; padding: 10px; gap: 6px;
-      width: 80px; min-height: 0; height: 100%;
-      overflow-y: auto; overflow-x: hidden;
-      background: rgba(0,0,0,.85);
-      align-items: center; justify-content: flex-start; order: 2;
-    }
-    .cam-thumbs:empty::before {
-      content: 'Photos appear here as you take them';
-      color: rgba(255,255,255,.4); font-size: .7rem;
-      writing-mode: vertical-rl; transform: rotate(180deg);
-      margin: auto 0; text-align: center; padding: 10px 0;
-      white-space: nowrap;
-    }
-    .cam-thumb { width: 60px; height: 60px; }
-    .cam-bottom-bar {
-      flex-direction: column; padding: 24px 16px;
-      width: 130px; height: 100%;
-      gap: 32px; justify-content: space-evenly;
-      order: 3;
-    }
-    .cam-bottom-bar .cam-side-btn { width: 100%; min-width: 0; padding: 12px 14px; font-size: .82rem; }
-    .cam-shutter { width: 64px; height: 64px; }
-    .cam-video-wrap { order: 1; }
-  }
+  .hidden { display: none !important; }
+  .text-muted { color: var(--text-2); }
+  .text-small { font-size: 13px; }
+  .text-center { text-align: center; }
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+  .flex-row { display: flex; align-items: center; gap: 8px; }
 </style>
 </head>
 <body>
 
-<div id="loader">
-  <div class="logo">📸 SiteLog</div>
-  <div class="sub">Site Photo Logger</div>
-  <div class="spinner"></div>
-  <div class="msg" id="loader-msg">Initialising...</div>
+<!-- Login -->
+<div id="login-screen" class="screen active">
+  <div class="login-logo">AH</div>
+  <h1 class="login-title">AH Estimating</h1>
+  <p class="login-sub">Sign in with your Auzzie Homes account to manage RFQs and quotes.</p>
+  <button class="btn-primary" onclick="login()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+      <polyline points="10 17 15 12 10 7"/>
+      <line x1="15" y1="12" x2="3" y2="12"/>
+    </svg>
+    Sign In With Microsoft
+  </button>
 </div>
 
-<div id="toast"></div>
-
-<!-- LIGHTBOX -->
-<div class="lightbox" id="lightbox">
-  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-  <div class="lightbox-info" id="lightbox-info">1 / 5</div>
-  <div class="lightbox-stage" id="lightbox-stage">
-    <div class="lightbox-track" id="lightbox-track"></div>
+<!-- Awaiting -->
+<div id="awaiting-screen" class="screen">
+  <div class="awaiting-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
   </div>
-  <div class="lightbox-thumbs" id="lightbox-thumbs"></div>
+  <h2 style="margin-bottom: 8px;">Awaiting Authorisation</h2>
+  <p class="text-muted" style="max-width: 320px; margin: 0 auto 24px;">
+    Your account <strong id="awaiting-email"></strong> is not authorised to use this app yet.
+    Please ask an admin to add you.
+  </p>
+  <button class="btn-secondary" onclick="logout()">Sign Out</button>
 </div>
 
-<div class="modal-overlay" id="confirmModal">
-  <div class="modal">
-    <h3 id="confirm-title">Confirm</h3>
-    <p id="confirm-msg">Are you sure?</p>
-    <div class="modal-btns">
-      <button class="modal-btn cancel" onclick="closeConfirm()">Cancel</button>
-      <button class="modal-btn confirm" id="confirm-ok-btn">Confirm</button>
+<!-- Jobs list -->
+<div id="jobs-screen" class="screen">
+  <div class="top-bar">
+    <div class="login-logo" style="width: 32px; height: 32px; border-radius: 8px; font-size: 13px; margin: 0;">AH</div>
+    <div class="top-title">Jobs</div>
+    <div class="top-actions">
+      <button class="icon-btn primary" onclick="openNewJob()" title="New Job">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+      <button class="icon-btn" onclick="loadJobs()" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div class="user-chip" onclick="toggleUserMenu()">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-name" id="user-name">...</div>
+      </div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="content-narrow">
+      <div id="admin-banner" class="admin-banner hidden">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Admin Mode
+      </div>
+      <div id="jobs-content">
+        <div class="loading"><div class="spinner"></div><div>Loading Jobs...</div></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ERROR -->
-<div class="screen" id="screen-error">
-  <div class="login-card">
-    <div class="login-icon">⚠️</div>
-    <h1>Something Went Wrong</h1>
-    <div class="err-detail" id="error-detail">Error message</div>
-    <button class="ms-btn" style="background:var(--accent);color:#fff" onclick="location.reload()">↻ Reload App</button>
-  </div>
-</div>
-
-<!-- FIRST RUN -->
-<div class="screen" id="screen-firstrun">
-  <div class="login-card">
-    <div class="login-icon">⚙️</div>
-    <h1>First-Time Setup</h1>
-    <p>Enter your <strong>Azure Client ID</strong>. You only need to do this once on this device.</p>
-    <div style="text-align:left;margin-bottom:16px">
-      <label class="form-label">Azure Client ID</label>
-      <input type="text" class="form-input" id="firstrun-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-    </div>
-    <button class="ms-btn" style="background:var(--accent);color:#fff" onclick="saveFirstRun()">Continue</button>
-  </div>
-</div>
-
-<!-- LOGIN -->
-<div class="screen" id="screen-login">
-  <div class="login-card">
-    <div class="login-icon">🏗️</div>
-    <h1>SiteLog</h1>
-    <p>Sign in with your Microsoft 365 account to continue.</p>
-    <button class="ms-btn" onclick="signIn()">
-      <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+<!-- New Job -->
+<div id="new-job-screen" class="screen">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goBack()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
       </svg>
-      Sign in with Microsoft
     </button>
-  </div>
-</div>
-
-<!-- PENDING -->
-<div class="screen" id="screen-pending">
-  <div class="login-card">
-    <div class="pending-icon">⏳</div>
-    <h1>Awaiting Authorisation</h1>
-    <p>Hi <strong id="pending-name">there</strong>,<br><br>
-       Your account is registered but not yet assigned to any jobs.<br><br>
-       Please ask the admin (Oskar) to authorise you. Once done, refresh this app.</p>
-    <button class="ms-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="location.reload()">↻ Refresh</button>
-    <div style="margin-top:14px"><button class="logout-btn" onclick="signOut()">Sign Out</button></div>
-  </div>
-</div>
-
-<!-- JOBS -->
-<div class="screen" id="screen-jobs">
-  <div class="topbar">
-    <div class="app-title">SiteLog</div>
-    <div class="user-pill"><span class="dot"></span><span id="user-name-pill">Manager</span></div>
-    <button class="icon-btn" id="settings-btn" onclick="openSettings()">⚙</button>
+    <div class="top-title">New Job</div>
   </div>
   <div class="content">
-    <div class="section-label">Select Job Site</div>
-    <div class="reorder-hint" id="reorder-hint" style="display:none">Tip: hold &amp; drag onto another job to swap</div>
-    <div class="job-grid" id="job-grid"></div>
+    <div class="content-narrow">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Job Code</label>
+          <input id="nj-code" type="text" placeholder="2310" maxlength="4" inputmode="numeric" autocomplete="off" />
+          <div class="form-hint">4 digits (YYMM)</div>
+          <div class="form-error hidden" id="nj-code-err"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Job Name</label>
+          <input id="nj-name" type="text" placeholder="GV" maxlength="5" autocomplete="off" style="text-transform: uppercase;" />
+          <div class="form-hint">2-5 chars, letter first</div>
+          <div class="form-error hidden" id="nj-name-err"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Full Address</label>
+        <input id="nj-address" type="text" placeholder="11 Grandview Rd Chadstone 3148" autocomplete="off" />
+        <div class="form-hint">Used in folder name and RFQ subject lines</div>
+        <div class="form-error hidden" id="nj-address-err"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project Team Emails</label>
+        <div class="email-chips" id="nj-team-chips"></div>
+        <div class="form-hint">CC'd on every RFQ for this job. Default admins are locked.</div>
+      </div>
+      <div class="btn-row mt-24">
+        <button class="btn-primary" id="nj-submit" onclick="submitNewJob()">Create Job</button>
+        <button class="btn-secondary" onclick="goBack()">Cancel</button>
+      </div>
+      <div id="nj-progress" class="hidden mt-24">
+        <div class="info-card">
+          <div style="font-weight: 600; margin-bottom: 8px;">Creating Job...</div>
+          <div id="nj-progress-list" class="progress-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- PHOTO -->
-<div class="screen" id="screen-photo">
-  <div class="topbar">
-    <div class="app-title" id="ph-top-title">Job</div>
-    <button class="round-back" onclick="navigateBack()" aria-label="Back">←</button>
-  </div>
-  <div class="content">
-    <div class="form-group">
-      <div class="field-label">Description</div>
-      <div class="desc-wrap">
-        <textarea class="desc-input" id="photo-desc" placeholder="e.g. Slab, Framing, Joinery..." rows="3"></textarea>
-        <button class="mic-btn" id="mic-btn" aria-label="Voice input">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="2" width="6" height="12" rx="3"/>
-            <path d="M5 11a7 7 0 0 0 14 0"/>
-            <line x1="12" y1="18" x2="12" y2="22"/>
-            <line x1="8" y1="22" x2="16" y2="22"/>
-          </svg>
-        </button>
-      </div>
-      <div class="mic-status" id="mic-status"></div>
-    </div>
-    <div class="photo-actions">
-      <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
-        <span class="btn-icon">🖼️</span>
-        <span class="btn-label">From Gallery</span>
-        <span class="btn-count">Multi-select</span>
-      </button>
-      <button class="photo-btn primary" id="btn-camera" onclick="triggerCamera()">
-        <span class="btn-icon">📷</span>
-        <span class="btn-label">Take Photo</span>
-        <span class="btn-count" id="camera-count">0 / 5</span>
-      </button>
-    </div>
-    <input type="file" id="input-gallery" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
-    <div class="field-label">Photos (<span id="photo-count">0</span> / 5) — tap to enlarge</div>
-    <div class="thumb-grid" id="thumb-grid"></div>
-    <div class="gps-row">
-      <span class="gps-icon">📍</span>
-      <div class="gps-text">
-        <div>GPS Stamp</div>
-        <small id="gps-status">Off</small>
-      </div>
-      <label class="gps-toggle">
-        <input type="checkbox" id="gps-toggle" onchange="toggleGPS(this.checked)">
-        <span class="gps-slider"></span>
-      </label>
-      <button class="gps-refresh" id="gps-refresh" onclick="refreshGPS()" aria-label="Refresh location" title="Refresh location">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12a9 9 0 1 1-3-6.7"/>
-          <polyline points="21 4 21 10 15 10"/>
+<!-- Job detail -->
+<div id="job-detail-screen" class="screen">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goBack()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <div class="top-title green" id="jd-title">Job</div>
+    <div class="top-actions">
+      <button class="icon-btn" onclick="openCurrentJobInSharePoint()" title="Open In SharePoint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
         </svg>
       </button>
     </div>
-    <div class="upload-progress" id="upload-progress">
-      <div class="progress-label" id="progress-label">Uploading...</div>
-      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
-    </div>
-    <div class="action-row">
-      <button class="btn btn-reset" onclick="confirmDialog('Reset Session?', 'This will clear all photos and the description.', resetSession)">↺ Reset</button>
-      <button class="btn btn-save" id="btn-save" onclick="savePhotos()">↑ Save</button>
-    </div>
   </div>
-</div>
-
-<!-- IN-APP CAMERA -->
-<div class="screen" id="screen-camera">
-  <div class="cam-container">
-    <div class="cam-video-wrap">
-      <div class="cam-loading" id="cam-loading">Starting camera...</div>
-      <video id="cam-video" autoplay playsinline muted></video>
-      <div class="cam-flash" id="cam-flash"></div>
-      <div class="cam-top-bar">
-        <div class="cam-counter" id="cam-counter">0 / 5</div>
-        <div class="cam-job-pill" id="cam-job-pill">Job</div>
-        <button class="cam-close" onclick="closeCamera()">✕</button>
+  <div class="content">
+    <div class="content-narrow">
+      <div id="jd-content">
+        <div class="loading"><div class="spinner"></div><div>Loading Job...</div></div>
       </div>
-    </div>
-    <div class="cam-thumbs" id="cam-thumbs"></div>
-    <div class="cam-bottom-bar">
-      <button class="cam-side-btn empty" id="cam-cancel" onclick="cancelCamera()">Cancel</button>
-      <button class="cam-shutter" id="cam-shutter" onclick="takePhoto()" aria-label="Take photo"></button>
-      <button class="cam-side-btn" id="cam-done" onclick="doneCamera()">Done</button>
     </div>
   </div>
 </div>
 
 <!-- SETTINGS -->
-<div class="screen" id="screen-settings">
-  <div class="topbar">
-    <div class="app-title">Settings</div>
-    <button class="round-back" onclick="navigateBack()" aria-label="Back">←</button>
+<div id="settings-screen" class="screen">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goBack()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <div class="top-title">Settings</div>
   </div>
   <div class="content">
-
-    <div class="settings-section">
-      <h3>Your Profile</h3>
-      <div class="form-group">
-        <label class="form-label">Manager Name <span style="color:var(--text-dim)">(used in filenames)</span></label>
-        <input type="text" class="form-input" id="setting-manager-name" placeholder="e.g. John Smith">
+    <div class="content-wide">
+      <div class="settings-tabs">
+        <div class="settings-tab active" data-tab="catalog">Trades / Suppliers</div>
+        <div class="settings-tab" data-tab="email-templates">Email Templates</div>
+        <div class="settings-tab" data-tab="signature">Email Signature</div>
+        <div class="settings-tab" data-tab="users">Users</div>
       </div>
-      <button class="save-settings-btn" onclick="saveProfile()">Save Profile</button>
-    </div>
 
-    <div class="divider"></div>
-
-    <div class="settings-section">
-      <h3>Account</h3>
-      <div class="info-box">
-        Signed in as <strong id="account-email">—</strong><br>
-        Authorised for <strong id="account-job-count">0</strong> job(s)<br>
-        Storage: <strong id="account-storage">SharePoint - AH Site</strong>
-      </div>
-      <button class="logout-btn" onclick="signOut()">Sign Out</button>
-    </div>
-
-    <div class="divider"></div>
-
-    <div id="admin-panel" style="display:none">
-      <div class="settings-section">
-        <h3 class="admin">🛡 Admin Panel <span class="badge-admin">ADMIN</span></h3>
-        <div class="info-box">
-          Welcome <strong id="admin-name">Oskar</strong>. Changes here affect all managers.<br>
-          Config syncs via SharePoint AH Site.
-        </div>
-        <div class="tabs">
-          <div class="tab active" data-tab="jobs" onclick="switchAdminTab('jobs', this)">Jobs</div>
-          <div class="tab" data-tab="managers" onclick="switchAdminTab('managers', this)">Managers</div>
-          <div class="tab" data-tab="config" onclick="switchAdminTab('config', this)">Config</div>
-        </div>
-
-        <div id="admin-tab-jobs" class="admin-tab-content">
-          <div class="admin-section">
-            <h3 style="font-size:.9rem">Create New Job</h3>
-            <div class="add-job-form">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-                <div>
-                  <label class="form-label">Job Number</label>
-                  <input type="text" class="form-input" id="new-job-number" placeholder="e.g. 2504">
-                </div>
-                <div>
-                  <label class="form-label">Job Name</label>
-                  <input type="text" class="form-input" id="new-job-name" placeholder="e.g. LF">
-                </div>
-              </div>
-              <button class="save-settings-btn admin" onclick="createNewJob()">+ Create Job &amp; Folder</button>
+      <!-- Combined catalog: trades & suppliers in one list, each item has companies nested -->
+      <div class="settings-section active" id="settings-catalog">
+        <div class="info-card mb-12" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 240px;">
+            <div style="font-weight: 600;">Trades / Suppliers</div>
+            <div class="text-muted text-small mt-4">
+              Each row is a category you'll send RFQs for (e.g. Concrete, Tiling, Windows). Companies are nested below — these are the actual emails the RFQ goes to.
             </div>
           </div>
-          <div class="section-label">Active Jobs</div>
-          <div class="admin-job-list" id="admin-active-jobs"></div>
-          <div class="section-label" style="margin-top:24px">Archived Jobs</div>
-          <div class="admin-job-list" id="admin-archived-jobs"></div>
+          <div class="btn-row">
+            <button class="btn-secondary small" onclick="reimportCatalogFromExcel()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              Re-Import From Excel
+            </button>
+            <button class="btn-primary small" onclick="addNewCatalogItem()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Item
+            </button>
+          </div>
         </div>
-
-        <div id="admin-tab-managers" class="admin-tab-content" style="display:none">
-          <div class="info-box">
-            Managers appear here when they first sign in. Tap their job tags to authorise/de-authorise.
-          </div>
-          <div id="admin-managers-list"></div>
+        <div class="filter-bar">
+          <input id="catalog-search" type="text" placeholder="Search by item name or company..." />
         </div>
+        <div id="catalog-list">
+          <div class="loading"><div class="spinner"></div><div>Loading...</div></div>
+        </div>
+      </div>
 
-        <div id="admin-tab-config" class="admin-tab-content" style="display:none">
-          <div class="form-group">
-            <label class="form-label">Azure Client ID</label>
-            <input type="text" class="form-input" id="setting-client-id">
+      <!-- Email Templates section: rendered entirely by email-templates.js -->
+      <div class="settings-section" id="settings-email-templates"></div>
+
+      <!-- Signature section -->
+      <div class="settings-section" id="settings-signature">
+        <div class="info-card mb-12">
+          <div style="font-weight: 600;">Email Signature</div>
+          <div class="text-muted text-small mt-4">Auto-appended to every RFQ email. Uses your sent name on each email.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Job Title</label>
+          <input id="sig-title" type="text" placeholder="Estimator" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Signature Body (HTML allowed)</label>
+          <textarea id="sig-body" rows="10" placeholder="Auzzie Homes Pty Ltd&#10;Address line&#10;Phone: ..."></textarea>
+          <div class="form-hint">Plain text recommended. Variables: {senderName}, {senderTitle}, {senderEmail}.</div>
+        </div>
+        <button class="btn-primary" onclick="saveSignature()">Save Signature</button>
+      </div>
+
+      <!-- Users section -->
+      <div class="settings-section" id="settings-users">
+        <div class="info-card mb-12">
+          <div style="font-weight: 600;">Authorised Users</div>
+          <div class="text-muted text-small mt-4">
+            Two admins are hardcoded: <strong>oskar@auhs.com.au</strong> and <strong>est@auhs.com.au</strong>.
+            Both can use all features <em>except</em> sending RFQs &mdash; only <strong>est@auhs.com.au</strong> can send.
+            Additional users will be added in a later phase.
           </div>
-          <div class="form-group">
-            <label class="form-label">Admin Email</label>
-            <input type="text" class="form-input" id="setting-admin-email">
-          </div>
-          <button class="save-settings-btn admin" onclick="saveAdminConfig()">Save Config</button>
-          <div class="info-box" style="margin-top:14px">
-            <strong>Note:</strong> Changing Client ID requires a page refresh.
+        </div>
+        <div class="info-card">
+          <div class="text-small">
+            <div class="flex-row mb-12"><span class="trade-tag">Admin</span> oskar@auhs.com.au</div>
+            <div class="flex-row"><span class="trade-tag">Admin · Sender</span> est@auhs.com.au</div>
           </div>
         </div>
       </div>
     </div>
-
-    <div style="height:60px"></div>
   </div>
 </div>
 
-<script>
-const ADMIN_EMAIL_DEFAULT = 'oskar@auhs.com.au';
-const SHAREPOINT_HOSTNAME = 'auzziehomes.sharepoint.com';
-const SHAREPOINT_SITE_PATH = '/sites/AHSite';
-const ROOT_FOLDER = 'AAA SiteLog';
-const CONFIG_FILE = 'sitelog-config.json';
-const ARCHIVE_SUBFOLDER = 'Archived';
-const GRAPH_SCOPE = ['Files.ReadWrite.All', 'Sites.ReadWrite.All', 'User.Read'];
-const MAX_PIXELS_2MP = 2_000_000; // 2 megapixels
+<div id="modal-backdrop" class="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
 
-let msalInstance = null;
-let currentAccount = null;
-let currentJob = null;
-let currentToken = null;
-let cloudConfig = null;
-let photos = [];
-let gpsEnabled = true;        // ON BY DEFAULT NOW
-let gpsCoords = null;
-let gpsAddress = null;        // resolved address string
-let isAdmin = false;
-let siteId = null;            // SharePoint site ID, fetched on first use
-let driveId = null;           // SharePoint drive (Documents library) ID
+<div id="toast"></div>
 
-function loadLocal() { return JSON.parse(localStorage.getItem('sitelog_local') || '{}'); }
-function saveLocal(d) { localStorage.setItem('sitelog_local', JSON.stringify(d)); }
-const HARDCODED_CLIENT_ID = '98663400-8356-49f7-88cb-c37feb311e82';
-function getClientId() { return loadLocal().clientId || HARDCODED_CLIENT_ID; }
-function getAdminEmail() { return (cloudConfig?.adminEmail || ADMIN_EMAIL_DEFAULT).toLowerCase(); }
-function getMyName() {
-  const local = loadLocal();
-  if (local.managerName) return local.managerName;
-  return currentAccount?.name || 'Manager';
-}
-
-function defaultConfig() {
-  return {
-    version: 3,
-    adminEmail: ADMIN_EMAIL_DEFAULT,
-    jobs: [
-      { id: genId(), number: '2504', name: 'LF', archived: false },
-      { id: genId(), number: '2602', name: 'CDL', archived: false },
-      { id: genId(), number: '8808', name: 'WW', archived: false },
-    ],
-    managers: {}
-  };
-}
-
-// Backward-compat: convert any old-style {code} job into {number, name}
-function normaliseJob(j) {
-  if (j.number && j.name) return j;
-  // Old format had a `code` field like "2504 LF"
-  const raw = (j.code || j.name || '').trim();
-  const sp = raw.indexOf(' ');
-  if (sp > 0) {
-    return Object.assign({}, j, { number: raw.substring(0, sp), name: raw.substring(sp + 1) });
-  }
-  return Object.assign({}, j, { number: raw, name: '' });
-}
-function jobFullCode(j) {
-  return j.name ? `${j.number} ${j.name}` : j.number;
-}
-
-function genId() { return 'j_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-
-// ════════════════════════════════════════════════════════════════
-//  SHAREPOINT — get site & drive IDs once, then cache
-// ════════════════════════════════════════════════════════════════
-async function getSharePointIds() {
-  if (siteId && driveId) return { siteId, driveId };
-  // 1. Get site ID
-  const siteUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_HOSTNAME}:${SHAREPOINT_SITE_PATH}`;
-  const r = await fetch(siteUrl, { headers: { Authorization: 'Bearer ' + currentToken } });
-  if (!r.ok) {
-    const err = await r.json().catch(()=>({}));
-    throw new Error('Cannot access SharePoint site: ' + (err.error?.message || r.status));
-  }
-  const site = await r.json();
-  siteId = site.id;
-  // 2. Get default drive (Documents library)
-  const dr = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive`, {
-    headers: { Authorization: 'Bearer ' + currentToken }
-  });
-  if (!dr.ok) throw new Error('Cannot access AH Site Documents library');
-  const drv = await dr.json();
-  driveId = drv.id;
-  return { siteId, driveId };
-}
-
-function spDriveBase() {
-  return `https://graph.microsoft.com/v1.0/drives/${driveId}`;
-}
-
-// ════════════════════════════════════════════════════════════════
-//  CLOUD CONFIG (in SharePoint now)
-// ════════════════════════════════════════════════════════════════
-async function loadCloudConfig() {
-  try {
-    await getSharePointIds();
-    const path = `${ROOT_FOLDER}/${CONFIG_FILE}`;
-    const res = await fetch(`${spDriveBase()}/root:/${encodeURIPath(path)}:/content`, {
-      headers: { Authorization: 'Bearer ' + currentToken }
-    });
-    if (res.status === 404) {
-      cloudConfig = defaultConfig();
-      await saveCloudConfig();
-      return;
-    }
-    if (!res.ok) throw new Error('Config load: ' + res.status);
-    cloudConfig = await res.json();
-    if (!cloudConfig.adminEmail) cloudConfig.adminEmail = ADMIN_EMAIL_DEFAULT;
-    if (!cloudConfig.managers) cloudConfig.managers = {};
-    if (!cloudConfig.jobs) cloudConfig.jobs = [];
-    // Backward-compat: ensure all jobs have number+name fields
-    cloudConfig.jobs = cloudConfig.jobs.map(normaliseJob);
-  } catch (e) {
-    console.error('Config error:', e);
-    cloudConfig = defaultConfig();
-  }
-}
-
-async function saveCloudConfig() {
-  await getSharePointIds();
-  await ensureFolder(ROOT_FOLDER);
-  const path = `${ROOT_FOLDER}/${CONFIG_FILE}`;
-  const res = await fetch(`${spDriveBase()}/root:/${encodeURIPath(path)}:/content`, {
-    method: 'PUT',
-    headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify(cloudConfig, null, 2)
-  });
-  if (!res.ok) throw new Error('Save config failed: ' + res.status);
-}
-
-async function registerManagerIfNew() {
-  const email = currentAccount.username.toLowerCase();
-  const isAdminUser = email === getAdminEmail();
-  if (!cloudConfig.managers[email]) {
-    cloudConfig.managers[email] = {
-      name: currentAccount.name,
-      jobIds: isAdminUser ? cloudConfig.jobs.filter(j=>!j.archived).map(j=>j.id) : [],
-      firstSeen: new Date().toISOString(),
-      lastSeen: new Date().toISOString()
-    };
-    try { await saveCloudConfig(); } catch(e) { console.warn(e); }
-  } else {
-    cloudConfig.managers[email].lastSeen = new Date().toISOString();
-    cloudConfig.managers[email].name = currentAccount.name;
-  }
-}
-
-function getMyAuthorisedJobs() {
-  const email = currentAccount.username.toLowerCase();
-  if (email === getAdminEmail()) return cloudConfig.jobs.filter(j => !j.archived);
-  const mgr = cloudConfig.managers[email];
-  if (!mgr) return [];
-  return cloudConfig.jobs.filter(j => !j.archived && mgr.jobIds.includes(j.id));
-}
-
-// ════════════════════════════════════════════════════════════════
-//  MSAL
-// ════════════════════════════════════════════════════════════════
-function initMsal() {
-  if (typeof msal === 'undefined') return Promise.reject(new Error('MSAL library failed to load.'));
-  const clientId = getClientId();
-  if (!clientId) return Promise.resolve(false);
-  msalInstance = new msal.PublicClientApplication({
-    auth: {
-      clientId,
-      authority: 'https://login.microsoftonline.com/common',
-      redirectUri: window.location.origin + window.location.pathname,
-    },
-    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
-  });
-  if (typeof msalInstance.initialize === 'function') return msalInstance.initialize().then(() => true);
-  return Promise.resolve(true);
-}
-
-async function checkExistingLogin() {
-  try { await msalInstance.handleRedirectPromise(); } catch(e) { console.warn(e); }
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length > 0) { currentAccount = accounts[0]; return true; }
-  return false;
-}
-
-async function getToken() {
-  try {
-    const result = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPE, account: currentAccount });
-    currentToken = result.accessToken;
-    return result.accessToken;
-  } catch(e) {
-    await msalInstance.acquireTokenRedirect({ scopes: GRAPH_SCOPE });
-    return null;
-  }
-}
-
-async function signIn() {
-  try { await msalInstance.loginRedirect({ scopes: GRAPH_SCOPE }); }
-  catch(e) { showError('Sign-in failed: ' + e.message); }
-}
-
-function signOut() {
-  try { msalInstance.logoutRedirect(); }
-  catch(e) { localStorage.clear(); location.reload(); }
-}
-
-function saveFirstRun() {
-  const cid = document.getElementById('firstrun-client-id').value.trim();
-  if (!cid) { showToast('Please Enter The Client ID', 'error'); return; }
-  const local = loadLocal();
-  local.clientId = cid;
-  saveLocal(local);
-  location.reload();
-}
-
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  if (id === 'screen-jobs') renderJobs();
-  if (id === 'screen-photo') {
-    // Auto-enable GPS when entering photo screen
-    const tg = document.getElementById('gps-toggle');
-    if (!tg.checked) { tg.checked = true; toggleGPS(true); }
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  NAVIGATION STACK — supports phone hardware back button
-// ════════════════════════════════════════════════════════════════
-let navStack = []; // ['screen-jobs', 'screen-photo', ...] — current is last
-let isHandlingPopState = false;
-
-// Set the "home" / root screen — does NOT push history
-function setRootScreen(id) {
-  navStack = [id];
-  showScreen(id);
-  // Replace current history entry with a marker so back goes to home behaviour
-  history.replaceState({ screen: id, depth: 0 }, '', '');
-}
-
-// Navigate forward — pushes history entry so phone back works
-function navigateTo(id, extra) {
-  if (navStack[navStack.length - 1] === id) return; // already there
-  navStack.push(id);
-  history.pushState({ screen: id, depth: navStack.length - 1, extra: extra || null }, '', '');
-  showScreen(id);
-}
-
-// Navigate back one step (the round-back button uses this)
-function navigateBack() {
-  if (navStack.length > 1) {
-    history.back(); // popstate handler will do the actual screen change
-  }
-}
-
-// Replace the "Back" round button to use navigateBack instead of hardcoded screens
-window.addEventListener('popstate', (e) => {
-  isHandlingPopState = true;
-  try {
-    // 1. Lightbox open? Close it first.
-    if (document.getElementById('lightbox').classList.contains('open')) {
-      closeLightbox();
-      // Push state back so the browser doesn't actually go back
-      history.pushState({ screen: navStack[navStack.length - 1], depth: navStack.length - 1 }, '', '');
-      return;
-    }
-    // 2. Confirm modal open? Close it.
-    if (document.getElementById('confirmModal').classList.contains('open')) {
-      closeConfirm();
-      history.pushState({ screen: navStack[navStack.length - 1], depth: navStack.length - 1 }, '', '');
-      return;
-    }
-    // 3. On camera screen — handle cleanup
-    const onCamera = document.getElementById('screen-camera').classList.contains('active');
-    if (onCamera) {
-      // If Done was clicked, just close cleanly and pop the stack
-      if (camClosedCleanly) {
-        camClosedCleanly = false;
-        navStack.pop();
-        const prev = navStack[navStack.length - 1] || 'screen-jobs';
-        showScreen(prev);
-        renderThumbs();
-        return;
-      }
-      // Otherwise this is a hardware-back press — discard new photos silently
-      // (we can't easily show a confirm dialog mid-popstate)
-      cancelCameraFromBack();
-      navStack.pop();
-      return;
-    }
-    // 4. Pop the stack and show the previous screen
-    if (navStack.length > 1) {
-      navStack.pop();
-      const prev = navStack[navStack.length - 1];
-      showScreen(prev);
-    } else {
-      // At the root — let browser handle it (will exit the PWA)
-      // But re-push a state so accidental back doesn't lose context
-      // (Android usually exits the PWA at this point anyway)
-    }
-  } finally {
-    isHandlingPopState = false;
-  }
-});
-
-// Special cancel-from-back-button: same as cancelCamera but synchronous-ish
-function cancelCameraFromBack() {
-  // Discard any photos taken in this camera session
-  if (photos.length > camPhotosBeforeOpen) {
-    while (photos.length > camPhotosBeforeOpen) {
-      const p = photos.pop();
-      URL.revokeObjectURL(p.url);
-    }
-    renderThumbs();
-  }
-  stopCameraStream();
-  showScreen('screen-photo');
-}
-
-function showError(msg) {
-  hideLoader();
-  document.getElementById('error-detail').textContent = msg;
-  showScreen('screen-error');
-}
-
-function openSettings() { navigateTo('screen-settings'); renderSettings(); }
-
-function getJobOrder() {
-  return loadLocal().jobOrder || [];
-}
-function saveJobOrder(orderArray) {
-  const local = loadLocal();
-  local.jobOrder = orderArray;
-  saveLocal(local);
-}
-
-// Apply saved order to jobs list, append any new jobs at the end
-function sortByUserOrder(jobs) {
-  const order = getJobOrder();
-  if (!order.length) return jobs.slice();
-  const idx = id => {
-    const i = order.indexOf(id);
-    return i === -1 ? 9999 : i;
-  };
-  return jobs.slice().sort((a, b) => idx(a.id) - idx(b.id));
-}
-
-function renderJobs() {
-  const jobs = sortByUserOrder(getMyAuthorisedJobs());
-  const grid = document.getElementById('job-grid');
-  document.getElementById('user-name-pill').textContent = getMyName();
-  const sBtn = document.getElementById('settings-btn');
-  if (isAdmin) { sBtn.classList.add('admin'); sBtn.textContent = '🛡'; }
-  else { sBtn.classList.remove('admin'); sBtn.textContent = '⚙'; }
-  const hint = document.getElementById('reorder-hint');
-  if (jobs.length === 0) {
-    hint.style.display = 'none';
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="ico">📋</div>No Jobs Assigned To You Yet.<br>${isAdmin ? 'Create One In Admin → Jobs.' : 'Contact Your Admin To Be Authorised.'}</div>`;
-    return;
-  }
-  hint.style.display = jobs.length > 1 ? 'block' : 'none';
-  grid.innerHTML = jobs.map(j => `
-    <div class="job-card" data-job-id="${j.id}" draggable="true">
-      <div class="job-code">${escHtml(jobFullCode(j))}</div>
-    </div>
-  `).join('');
-  attachJobDragHandlers();
-}
-
-// ════════════════════════════════════════════════════════════════
-//  JOB CARD DRAG & DROP — desktop (HTML5) + mobile (long-press)
-// ════════════════════════════════════════════════════════════════
-let dragSrcEl = null;
-let touchDragEl = null;
-let touchStartTimer = null;
-let touchStartedDrag = false;
-let touchStartCoords = null;
-
-function attachJobDragHandlers() {
-  const cards = document.querySelectorAll('.job-card');
-  cards.forEach(card => {
-    // Desktop: HTML5 drag
-    card.addEventListener('dragstart', e => {
-      dragSrcEl = card;
-      card.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', card.dataset.jobId);
-    });
-    card.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (card !== dragSrcEl) card.classList.add('drag-over');
-    });
-    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-    card.addEventListener('drop', e => {
-      e.preventDefault();
-      card.classList.remove('drag-over');
-      if (dragSrcEl && card !== dragSrcEl) {
-        reorderJob(dragSrcEl.dataset.jobId, card.dataset.jobId);
-      }
-    });
-    card.addEventListener('dragend', () => {
-      card.classList.remove('dragging');
-      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-      dragSrcEl = null;
-    });
-    // Mobile: long-press to drag
-    card.addEventListener('touchstart', e => onJobTouchStart(e, card), { passive: true });
-    card.addEventListener('touchmove', e => onJobTouchMove(e, card), { passive: false });
-    card.addEventListener('touchend', e => onJobTouchEnd(e, card));
-    card.addEventListener('touchcancel', e => onJobTouchEnd(e, card));
-    // Click to select (only fires if no drag happened)
-    card.addEventListener('click', () => {
-      if (!touchStartedDrag) selectJob(card.dataset.jobId);
-    });
-  });
-}
-
-function onJobTouchStart(e, card) {
-  touchStartedDrag = false;
-  const t = e.touches[0];
-  touchStartCoords = { x: t.clientX, y: t.clientY };
-  clearTimeout(touchStartTimer);
-  touchStartTimer = setTimeout(() => {
-    // Long press → start dragging
-    touchStartedDrag = true;
-    touchDragEl = card;
-    card.classList.add('dragging');
-    if (navigator.vibrate) navigator.vibrate(40);
-  }, 350);
-}
-
-function onJobTouchMove(e, card) {
-  if (!touchStartCoords) return;
-  const t = e.touches[0];
-  const dx = t.clientX - touchStartCoords.x;
-  const dy = t.clientY - touchStartCoords.y;
-  // If user moved before long-press fired, cancel drag attempt (it's a scroll)
-  if (!touchStartedDrag) {
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-      clearTimeout(touchStartTimer);
-      touchStartCoords = null;
-    }
-    return;
-  }
-  // We're dragging — find what's under the finger
-  e.preventDefault();
-  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  const target = document.elementFromPoint(t.clientX, t.clientY);
-  const dropCard = target ? target.closest('.job-card') : null;
-  if (dropCard && dropCard !== touchDragEl) dropCard.classList.add('drag-over');
-}
-
-function onJobTouchEnd(e, card) {
-  clearTimeout(touchStartTimer);
-  if (touchStartedDrag && touchDragEl) {
-    const t = (e.changedTouches && e.changedTouches[0]) || null;
-    if (t) {
-      const target = document.elementFromPoint(t.clientX, t.clientY);
-      const dropCard = target ? target.closest('.job-card') : null;
-      if (dropCard && dropCard !== touchDragEl) {
-        reorderJob(touchDragEl.dataset.jobId, dropCard.dataset.jobId);
-      }
-    }
-    touchDragEl.classList.remove('dragging');
-  }
-  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  touchDragEl = null;
-  touchStartCoords = null;
-  // Reset flag after click handler has run
-  setTimeout(() => { touchStartedDrag = false; }, 50);
-}
-
-function reorderJob(srcId, destId) {
-  // Swap the positions of the two jobs (not insert)
-  const jobs = sortByUserOrder(getMyAuthorisedJobs());
-  const fromIdx = jobs.findIndex(j => j.id === srcId);
-  const toIdx = jobs.findIndex(j => j.id === destId);
-  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
-  // Swap
-  [jobs[fromIdx], jobs[toIdx]] = [jobs[toIdx], jobs[fromIdx]];
-  saveJobOrder(jobs.map(j => j.id));
-  renderJobs();
-}
-
-function selectJob(id) {
-  currentJob = cloudConfig.jobs.find(j => j.id === id);
-  if (!currentJob) return;
-  document.getElementById('ph-top-title').textContent = jobFullCode(currentJob);
-  resetSessionSilent();
-  navigateTo('screen-photo');
-}
-
-// ════════════════════════════════════════════════════════════════
-//  PHOTOS — Camera, Gallery, Compress to 2MP, Stamp
-// ════════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════
-//  IN-APP CAMERA
-// ════════════════════════════════════════════════════════════════
-let camStream = null;
-let camPhotosBeforeOpen = 0; // remember count when camera opened, to allow Cancel
-
-async function triggerCamera() {
-  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
-  camPhotosBeforeOpen = photos.length;
-  document.getElementById('cam-job-pill').textContent = currentJob ? jobFullCode(currentJob) : '';
-  updateCamUi();
-  navigateTo('screen-camera');
-  await startCameraStream();
-}
-
-async function startCameraStream() {
-  const loading = document.getElementById('cam-loading');
-  loading.textContent = 'Starting camera...';
-  loading.style.display = 'flex';
-  try {
-    if (camStream) stopCameraStream();
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      audio: false
-    });
-    const video = document.getElementById('cam-video');
-    video.srcObject = camStream;
-    await new Promise(resolve => {
-      if (video.readyState >= 2) return resolve();
-      video.onloadedmetadata = resolve;
-    });
-    loading.style.display = 'none';
-  } catch(e) {
-    console.error('Camera error:', e);
-    loading.innerHTML = `Camera unavailable: ${e.message}<br><br>Please grant camera permission and try again.`;
-  }
-}
-
-function stopCameraStream() {
-  if (camStream) {
-    camStream.getTracks().forEach(t => t.stop());
-    camStream = null;
-  }
-  const video = document.getElementById('cam-video');
-  if (video) video.srcObject = null;
-}
-
-async function takePhoto() {
-  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
-  const video = document.getElementById('cam-video');
-  if (!video.videoWidth) return;
-  const shutter = document.getElementById('cam-shutter');
-  shutter.disabled = true;
-  // Flash effect
-  const flash = document.getElementById('cam-flash');
-  flash.classList.add('flash');
-  setTimeout(() => flash.classList.remove('flash'), 150);
-
-  try {
-    // Capture frame to canvas
-    const canvas = document.createElement('canvas');
-    const totalPixels = video.videoWidth * video.videoHeight;
-    let scale = 1;
-    if (totalPixels > MAX_PIXELS_2MP) scale = Math.sqrt(MAX_PIXELS_2MP / totalPixels);
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    let blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.88));
-    // Stamp GPS if enabled
-    if (gpsEnabled && gpsCoords) {
-      blob = await stampGPS(blob);
-    }
-    photos.push({ blob, url: URL.createObjectURL(blob), originalName: 'camera.jpg' });
-    updateCamUi();
-    renderThumbs(); // also update main screen thumbs underneath
-  } catch(e) {
-    console.error('Take photo error:', e);
-    showToast('Failed To Capture: ' + e.message, 'error');
-  } finally {
-    shutter.disabled = false;
-  }
-}
-
-function updateCamUi() {
-  document.getElementById('cam-counter').textContent = `${photos.length} / 5`;
-  document.getElementById('cam-counter').classList.toggle('full', photos.length >= 5);
-  const thumbs = document.getElementById('cam-thumbs');
-  thumbs.innerHTML = photos.map((p, i) => `
-    <div class="cam-thumb">
-      <img src="${p.url}" alt="">
-      <button class="cam-thumb-x" onclick="removePhotoFromCam(${i})">✕</button>
-    </div>
-  `).join('');
-  // Disable shutter at max
-  document.getElementById('cam-shutter').disabled = photos.length >= 5;
-}
-
-function removePhotoFromCam(idx) {
-  URL.revokeObjectURL(photos[idx].url);
-  photos.splice(idx, 1);
-  updateCamUi();
-  renderThumbs();
-}
-
-function doneCamera() {
-  stopCameraStream();
-  // Trigger history back so the popstate handler runs and pops the stack.
-  // We use a flag so popstate knows the camera was closed cleanly (no photos to discard prompt).
-  camClosedCleanly = true;
-  history.back();
-}
-
-function cancelCamera() {
-  // Remove any photos taken in this session
-  if (photos.length > camPhotosBeforeOpen) {
-    confirmDialog(
-      'Discard Photos?',
-      `You took ${photos.length - camPhotosBeforeOpen} photo(s). Cancel will discard them.`,
-      () => {
-        while (photos.length > camPhotosBeforeOpen) {
-          const p = photos.pop();
-          URL.revokeObjectURL(p.url);
-        }
-        renderThumbs();
-        doneCamera();
-      }
-    );
-  } else {
-    doneCamera();
-  }
-}
-
-function closeCamera() {
-  // X button = same behaviour as Done (keep photos)
-  doneCamera();
-}
-
-let camClosedCleanly = false;
-
-function triggerGallery() {
-  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
-  document.getElementById('input-gallery').click();
-}
-
-async function handleFiles(files) {
-  const remaining = 5 - photos.length;
-  const toProcess = Array.from(files).slice(0, remaining);
-  if (files.length > remaining) showToast(`Only ${remaining} Slot(s) Left`, 'error');
-
-  // Show processing state
-  if (toProcess.length > 1) showToast('Processing Photos...', '');
-
-  for (const file of toProcess) {
-    try {
-      // Step 1: compress to ~2MP
-      let blob = await compressTo2MP(file);
-      // Step 2: stamp GPS if enabled
-      if (gpsEnabled && gpsCoords) {
-        blob = await stampGPS(blob);
-      }
-      photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name });
-    } catch(e) {
-      console.error('Process photo error:', e);
-      showToast('Failed To Process One Photo', 'error');
-    }
-  }
-  renderThumbs();
-  document.getElementById('input-gallery').value = '';
-}
-
-async function compressTo2MP(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const totalPixels = img.width * img.height;
-      let scale = 1;
-      if (totalPixels > MAX_PIXELS_2MP) {
-        scale = Math.sqrt(MAX_PIXELS_2MP / totalPixels);
-      }
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(b => {
-        if (b) resolve(b);
-        else reject(new Error('Compress failed'));
-      }, 'image/jpeg', 0.88);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
-    img.src = url;
-  });
-}
-
-function removePhoto(idx, ev) {
-  if (ev) ev.stopPropagation();
-  URL.revokeObjectURL(photos[idx].url);
-  photos.splice(idx, 1);
-  renderThumbs();
-}
-
-function renderThumbs() {
-  const grid = document.getElementById('thumb-grid');
-  document.getElementById('photo-count').textContent = photos.length;
-  document.getElementById('camera-count').textContent = photos.length + ' / 5';
-  const max = photos.length >= 5;
-  document.getElementById('btn-camera').classList.toggle('disabled', max);
-  document.getElementById('btn-gallery').classList.toggle('disabled', max);
-  let html = photos.map((p, i) => `
-    <div class="thumb-wrap" onclick="openLightbox(${i})">
-      <img src="${p.url}" alt="">
-      <button class="thumb-remove" onclick="removePhoto(${i}, event)">✕</button>
-    </div>
-  `).join('');
-  for (let i = photos.length; i < 5; i++) html += `<div class="thumb-empty">+</div>`;
-  grid.innerHTML = html;
-  document.getElementById('btn-save').disabled = photos.length === 0;
-}
-
-// ════════════════════════════════════════════════════════════════
-//  LIGHTBOX — swipeable with thumbnail strip and infinite loop
-// ════════════════════════════════════════════════════════════════
-let lbIndex = 0;
-let lbStartX = 0;
-let lbStartY = 0;
-let lbDeltaX = 0;
-let lbDragging = false;
-let lbStageWidth = 0;
-let lbAxisLocked = null; // 'x' | 'y' | null
-
-function openLightbox(idx) {
-  if (!photos[idx]) return;
-  lbIndex = idx;
-  renderLightbox();
-  document.getElementById('lightbox').classList.add('open');
-  // Wait for layout
-  requestAnimationFrame(() => {
-    lbStageWidth = document.getElementById('lightbox-stage').offsetWidth;
-    positionTrack(false);
-  });
-}
-
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-}
-
-function renderLightbox() {
-  if (photos.length === 0) { closeLightbox(); return; }
-  if (lbIndex >= photos.length) lbIndex = photos.length - 1;
-  if (lbIndex < 0) lbIndex = 0;
-  document.getElementById('lightbox-info').textContent = `${lbIndex + 1} / ${photos.length}`;
-  // Track: render all slides
-  const track = document.getElementById('lightbox-track');
-  track.innerHTML = photos.map(p => `<div class="lightbox-slide"><img src="${p.url}" alt=""></div>`).join('');
-  // Thumbnail strip
-  const tEl = document.getElementById('lightbox-thumbs');
-  tEl.innerHTML = photos.map((p, i) => `
-    <div class="lightbox-thumb ${i === lbIndex ? 'active' : ''}" onclick="goToLightbox(${i})">
-      <img src="${p.url}" alt="">
-    </div>
-  `).join('');
-}
-
-function positionTrack(animate = true) {
-  const track = document.getElementById('lightbox-track');
-  if (!animate) track.classList.add('no-anim');
-  track.style.transform = `translateX(${-lbIndex * lbStageWidth}px)`;
-  if (!animate) {
-    // Force reflow then re-enable animations
-    void track.offsetWidth;
-    track.classList.remove('no-anim');
-  }
-}
-
-function goToLightbox(idx) {
-  // Wrap around
-  if (photos.length === 0) return;
-  if (idx < 0) idx = photos.length - 1;
-  if (idx >= photos.length) idx = 0;
-  lbIndex = idx;
-  positionTrack(true);
-  // Update active thumb
-  document.querySelectorAll('.lightbox-thumb').forEach((el, i) => {
-    el.classList.toggle('active', i === lbIndex);
-  });
-  document.getElementById('lightbox-info').textContent = `${lbIndex + 1} / ${photos.length}`;
-}
-
-function lbNext() { goToLightbox(lbIndex + 1); }
-function lbPrev() { goToLightbox(lbIndex - 1); }
-
-// Touch/mouse handlers
-function lbStart(e) {
-  if (!document.getElementById('lightbox').classList.contains('open')) return;
-  const t = e.touches ? e.touches[0] : e;
-  lbStartX = t.clientX;
-  lbStartY = t.clientY;
-  lbDeltaX = 0;
-  lbDragging = true;
-  lbAxisLocked = null;
-  lbStageWidth = document.getElementById('lightbox-stage').offsetWidth;
-  document.getElementById('lightbox-track').classList.add('no-anim');
-}
-
-function lbMove(e) {
-  if (!lbDragging) return;
-  const t = e.touches ? e.touches[0] : e;
-  const dx = t.clientX - lbStartX;
-  const dy = t.clientY - lbStartY;
-  if (lbAxisLocked === null) {
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-      lbAxisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    }
-  }
-  if (lbAxisLocked === 'x') {
-    lbDeltaX = dx;
-    if (e.cancelable) e.preventDefault();
-    document.getElementById('lightbox-track').style.transform = `translateX(${-lbIndex * lbStageWidth + lbDeltaX}px)`;
-  }
-}
-
-function lbEnd() {
-  if (!lbDragging) return;
-  lbDragging = false;
-  document.getElementById('lightbox-track').classList.remove('no-anim');
-  if (lbAxisLocked === 'x') {
-    const threshold = lbStageWidth * 0.2;
-    if (lbDeltaX < -threshold) {
-      lbNext();
-    } else if (lbDeltaX > threshold) {
-      lbPrev();
-    } else {
-      positionTrack(true);
-    }
-  }
-  lbDeltaX = 0;
-  lbAxisLocked = null;
-}
-
-// Attach handlers once
-document.getElementById('lightbox-stage').addEventListener('touchstart', lbStart, { passive: true });
-document.getElementById('lightbox-stage').addEventListener('touchmove', lbMove, { passive: false });
-document.getElementById('lightbox-stage').addEventListener('touchend', lbEnd);
-document.getElementById('lightbox-stage').addEventListener('mousedown', lbStart);
-window.addEventListener('mousemove', lbMove);
-window.addEventListener('mouseup', lbEnd);
-
-// Reposition on resize/orientation change
-window.addEventListener('resize', () => {
-  if (document.getElementById('lightbox').classList.contains('open')) {
-    lbStageWidth = document.getElementById('lightbox-stage').offsetWidth;
-    positionTrack(false);
-  }
-});
-
-// ════════════════════════════════════════════════════════════════
-//  GPS — get coords + reverse geocode to address
-// ════════════════════════════════════════════════════════════════
-async function toggleGPS(en) {
-  gpsEnabled = en;
-  if (en) {
-    await acquireGPS();
-  } else {
-    gpsCoords = null;
-    gpsAddress = null;
-    setGpsStatus('Off', true);
-  }
-}
-
-async function refreshGPS() {
-  if (!gpsEnabled) {
-    // If GPS is off, turn it on
-    document.getElementById('gps-toggle').checked = true;
-    gpsEnabled = true;
-  }
-  const btn = document.getElementById('gps-refresh');
-  btn.classList.add('spinning');
-  await acquireGPS();
-  btn.classList.remove('spinning');
-}
-
-function setGpsStatus(text, dim = false) {
-  const el = document.getElementById('gps-status');
-  el.textContent = text;
-  el.classList.toggle('dim', dim);
-}
-
-async function acquireGPS() {
-  setGpsStatus('Getting location...', true);
-  return new Promise(resolve => {
-    navigator.geolocation.getCurrentPosition(
-      async pos => {
-        gpsCoords = pos.coords;
-        setGpsStatus('Looking up address...', true);
-        try {
-          gpsAddress = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-          setGpsStatus(gpsAddress, false);
-        } catch(e) {
-          gpsAddress = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-          setGpsStatus(gpsAddress, false);
-        }
-        resolve();
-      },
-      err => {
-        gpsEnabled = false;
-        document.getElementById('gps-toggle').checked = false;
-        setGpsStatus('Location permission denied', true);
-        showToast('GPS Denied — Enable In Browser Settings', 'error');
-        resolve();
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    );
-  });
-}
-
-async function reverseGeocode(lat, lng) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' }
-  });
-  if (!res.ok) throw new Error('Geocode failed');
-  const data = await res.json();
-  // Build a clean short address
-  const a = data.address || {};
-  const parts = [];
-  // Street
-  if (a.house_number && a.road) parts.push(`${a.house_number} ${a.road}`);
-  else if (a.road) parts.push(a.road);
-  // Suburb (preferred over city)
-  const suburb = a.suburb || a.neighbourhood || a.hamlet || a.village;
-  const city = a.city || a.town;
-  if (suburb) {
-    parts.push(suburb);
-    // Only add city if it's different and we don't already have a suburb
-  } else if (city) {
-    parts.push(city);
-  }
-  // State (abbreviated for Australia)
-  if (a.state) {
-    parts.push(abbreviateState(a.state));
-  }
-  if (parts.length === 0) return data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-  return parts.join(', ');
-}
-
-function abbreviateState(state) {
-  const map = {
-    'Victoria': 'VIC',
-    'New South Wales': 'NSW',
-    'Queensland': 'QLD',
-    'South Australia': 'SA',
-    'Western Australia': 'WA',
-    'Tasmania': 'TAS',
-    'Australian Capital Territory': 'ACT',
-    'Northern Territory': 'NT'
-  };
-  return map[state] || state;
-}
-
-async function stampGPS(blob) {
-  return new Promise(resolve => {
-    const img = new Image();
-    const url = URL.createObjectURL(blob);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const dateStr = `${yyyy}/${mm}/${dd}`;
-      const timeStr = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
-      const addr = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
-      const manager = getMyName();
-
-      const line1 = `${dateStr}  ${timeStr}`;
-      const line2 = addr;
-      const line3 = `by ${manager}`;
-
-      const fontSize = Math.max(20, Math.round(img.width * 0.022));
-      const lineH = fontSize * 1.35;
-      ctx.font = `600 ${fontSize}px Inter, sans-serif`;
-
-      const padding = 18;
-      const lines = [line1, line2, line3].filter(Boolean);
-      const widths = lines.map(l => ctx.measureText(l).width);
-      const maxW = Math.max(...widths);
-      const boxW = maxW + padding * 2;
-      const boxH = lines.length * lineH + padding * 2 - (lineH - fontSize);
-      const boxX = 20;
-      const boxY = img.height - boxH - 20;
-
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 10); ctx.fill(); }
-      else { ctx.fillRect(boxX, boxY, boxW, boxH); }
-
-      ctx.fillStyle = '#fff';
-      ctx.textBaseline = 'top';
-      lines.forEach((line, i) => {
-        ctx.fillText(line, boxX + padding, boxY + padding + i * lineH);
-      });
-
-      URL.revokeObjectURL(url);
-      canvas.toBlob(b => resolve(b), 'image/jpeg', 0.88);
-    };
-    img.src = url;
-  });
-}
-
-// ════════════════════════════════════════════════════════════════
-//  SAVE PHOTOS — to SharePoint
-// ════════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════
-//  VOICE INPUT — press & hold the mic to dictate description
-// ════════════════════════════════════════════════════════════════
-let voiceRec = null;
-let voiceActive = false;
-let voiceStartedAt = 0;
-let voiceFinalText = '';
-let voiceInterimText = '';
-let voiceBaseValue = '';
-
-function getSpeechRecognition() {
-  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-}
-
-function titleCaseWords(s) {
-  // Capitalise first letter of every word; preserve digits and punctuation
-  return s.replace(/(^|\s|[\(\[\-/])(\S)/g, (_, sep, ch) => sep + ch.toUpperCase());
-}
-
-function startVoice() {
-  const SR = getSpeechRecognition();
-  if (!SR) {
-    showToast('Voice Input Not Supported On This Browser', 'error');
-    return;
-  }
-  if (voiceActive) return;
-  voiceActive = true;
-  voiceStartedAt = Date.now();
-  voiceFinalText = '';
-  voiceInterimText = '';
-  const desc = document.getElementById('photo-desc');
-  voiceBaseValue = desc.value;
-
-  voiceRec = new SR();
-  voiceRec.lang = 'en-AU';
-  voiceRec.interimResults = true;
-  voiceRec.continuous = true;
-  voiceRec.maxAlternatives = 1;
-
-  voiceRec.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const transcript = e.results[i][0].transcript;
-      if (e.results[i].isFinal) voiceFinalText += transcript + ' ';
-      else interim += transcript;
-    }
-    voiceInterimText = interim;
-    updateVoicePreview();
-  };
-
-  voiceRec.onerror = (e) => {
-    console.warn('Voice error:', e.error);
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      showToast('Microphone Permission Denied', 'error');
-      stopVoice(false);
-    } else if (e.error === 'no-speech') {
-      // Ignore — user just hasn't spoken yet
-    } else if (e.error !== 'aborted') {
-      showToast('Voice Error: ' + e.error, 'error');
-    }
-  };
-
-  voiceRec.onend = () => {
-    // If user is still holding the button, restart (continuous mode)
-    if (voiceActive) {
-      try { voiceRec.start(); } catch(_) {}
-    }
-  };
-
-  try {
-    voiceRec.start();
-  } catch(e) {
-    voiceActive = false;
-    showToast('Voice Start Failed: ' + e.message, 'error');
-    return;
-  }
-
-  // UI feedback
-  document.getElementById('mic-btn').classList.add('recording');
-  const status = document.getElementById('mic-status');
-  status.classList.add('recording');
-  status.textContent = '● Listening — Release To Stop';
-  if (navigator.vibrate) navigator.vibrate(40);
-}
-
-function updateVoicePreview() {
-  const desc = document.getElementById('photo-desc');
-  const live = (voiceFinalText + voiceInterimText).trim();
-  const formatted = titleCaseWords(live);
-  // Combine base value with new dictation
-  const sep = voiceBaseValue && !voiceBaseValue.endsWith(' ') ? ' ' : '';
-  desc.value = voiceBaseValue + sep + formatted;
-}
-
-function stopVoice(commit = true) {
-  if (!voiceActive && !voiceRec) return;
-  voiceActive = false;
-  if (voiceRec) {
-    try { voiceRec.stop(); } catch(_) {}
-    voiceRec = null;
-  }
-  const desc = document.getElementById('photo-desc');
-  if (commit) {
-    // Final commit using only the truly-finalised text (drop interim)
-    const finalOnly = titleCaseWords(voiceFinalText.trim());
-    const sep = voiceBaseValue && !voiceBaseValue.endsWith(' ') && finalOnly ? ' ' : '';
-    desc.value = voiceBaseValue + (finalOnly ? sep + finalOnly : '');
-  } else {
-    desc.value = voiceBaseValue;
-  }
-  voiceFinalText = '';
-  voiceInterimText = '';
-  voiceBaseValue = '';
-
-  document.getElementById('mic-btn').classList.remove('recording');
-  const status = document.getElementById('mic-status');
-  status.classList.remove('recording');
-  status.textContent = '';
-}
-
-// Wire up press-and-hold on the mic button (touch + mouse)
-(function setupMic() {
-  const btn = document.getElementById('mic-btn');
-  if (!btn) return;
-  const supported = !!getSpeechRecognition();
-  if (!supported) {
-    btn.classList.add('unsupported');
-    btn.addEventListener('click', () => {
-      showToast('Voice Input Not Supported On This Browser', 'error');
-    });
-    return;
-  }
-  // Touch
-  btn.addEventListener('touchstart', (e) => { e.preventDefault(); startVoice(); }, { passive: false });
-  btn.addEventListener('touchend',   (e) => { e.preventDefault(); stopVoice(true); });
-  btn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopVoice(true); });
-  // Mouse
-  btn.addEventListener('mousedown',  (e) => { e.preventDefault(); startVoice(); });
-  btn.addEventListener('mouseup',    (e) => { e.preventDefault(); stopVoice(true); });
-  btn.addEventListener('mouseleave', () => { if (voiceActive) stopVoice(true); });
-  // Prevent context menu / selection on long-press
-  btn.addEventListener('contextmenu', (e) => e.preventDefault());
-})();
-
-async function savePhotos() {
-  if (!photos.length) return;
-  const desc = document.getElementById('photo-desc').value.trim();
-  if (!desc) { showToast('Please Enter A Description', 'error'); return; }
-  await getToken();
-  await getSharePointIds();
-
-  const manager = getMyName();
-  const firstName = manager.split(/\s+/)[0] || manager;
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}_${String(now.getMonth()+1).padStart(2,'0')}_${String(now.getDate()).padStart(2,'0')}`;
-  const timeStr = `${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
-  const jobName = currentJob.name || jobFullCode(currentJob);
-  const folderPath = `${ROOT_FOLDER}/${jobFullCode(currentJob)}`;
-
-  const progress = document.getElementById('upload-progress');
-  const bar = document.getElementById('progress-bar');
-  const label = document.getElementById('progress-label');
-  progress.classList.add('visible');
-
-  try { await ensureFolder(folderPath); }
-  catch(e) { showToast('Folder Error: ' + e.message, 'error'); progress.classList.remove('visible'); return; }
-
-  let success = 0;
-  for (let i = 0; i < photos.length; i++) {
-    const p = photos[i];
-    const suffix = photos.length > 1 ? ` (${i+1})` : '';
-    const filename = `${desc} ${jobName} ${dateStr} ${timeStr} by ${firstName}${suffix}.jpg`;
-    label.textContent = `Uploading ${i+1} of ${photos.length}...`;
-    bar.style.width = ((i / photos.length) * 100) + '%';
-    try { await uploadFile(folderPath, filename, p.blob); success++; }
-    catch(e) { showToast(`Upload ${i+1} Failed: ${e.message}`, 'error'); }
-  }
-  bar.style.width = '100%';
-  label.textContent = `Done!`;
-  setTimeout(() => {
-    progress.classList.remove('visible');
-    if (success === photos.length) {
-      showBigSuccess(`${success} Photo${success>1?'s':''} Saved To AH Site`);
-      resetSessionSilent();
-    }
-  }, 800);
-}
-
-async function ensureFolder(folderPath) {
-  const parts = folderPath.split('/').filter(Boolean);
-  let current = '';
-  for (const part of parts) {
-    current = current ? current + '/' + part : part;
-    const check = await fetch(`${spDriveBase()}/root:/${encodeURIPath(current)}`, {
-      headers: { Authorization: 'Bearer ' + currentToken }
-    });
-    if (check.ok) continue;
-    const parent = current.includes('/')
-      ? `${spDriveBase()}/root:/${encodeURIPath(current.substring(0, current.lastIndexOf('/')))}`
-      : `${spDriveBase()}/root`;
-    await fetch(`${parent}/children`, {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: part, folder: {}, '@microsoft.graph.conflictBehavior': 'rename' })
-    });
-  }
-}
-
-async function uploadFile(folderPath, filename, blob) {
-  const url = `${spDriveBase()}/root:/${encodeURIPath(folderPath + '/' + filename)}:/content`;
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': blob.type || 'image/jpeg' },
-    body: blob
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.error?.message || `HTTP ${res.status}`);
-  }
-}
-
-async function moveFolder(srcPath, destParentPath) {
-  await ensureFolder(destParentPath);
-  const r = await fetch(`${spDriveBase()}/root:/${encodeURIPath(srcPath)}`, {
-    headers: { Authorization: 'Bearer ' + currentToken }
-  });
-  if (!r.ok) {
-    if (r.status === 404) return false;
-    throw new Error('Cannot find folder');
-  }
-  const item = await r.json();
-  const pr = await fetch(`${spDriveBase()}/root:/${encodeURIPath(destParentPath)}`, {
-    headers: { Authorization: 'Bearer ' + currentToken }
-  });
-  if (!pr.ok) throw new Error('Cannot find destination');
-  const parent = await pr.json();
-  const mv = await fetch(`${spDriveBase()}/items/${item.id}`, {
-    method: 'PATCH',
-    headers: { Authorization: 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ parentReference: { id: parent.id } })
-  });
-  if (!mv.ok) {
-    const err = await mv.json().catch(()=>({}));
-    throw new Error(err.error?.message || 'Move failed');
-  }
-  return true;
-}
-
-function encodeURIPath(p) { return p.split('/').map(s => encodeURIComponent(s)).join('/'); }
-
-// ════════════════════════════════════════════════════════════════
-//  RESET / MODAL
-// ════════════════════════════════════════════════════════════════
-function resetSession() { resetSessionSilent(); showToast('Session Reset', ''); }
-function resetSessionSilent() {
-  photos.forEach(p => URL.revokeObjectURL(p.url));
-  photos = [];
-  const dEl = document.getElementById('photo-desc'); if (dEl) dEl.value = '';
-  const up = document.getElementById('upload-progress'); if (up) up.classList.remove('visible');
-  // Keep GPS state on after save (user is likely still on site)
-  renderThumbs();
-}
-
-let confirmCb = null;
-function confirmDialog(title, msg, cb) {
-  document.getElementById('confirm-title').textContent = title;
-  document.getElementById('confirm-msg').textContent = msg;
-  confirmCb = cb;
-  document.getElementById('confirmModal').classList.add('open');
-}
-function closeConfirm() { document.getElementById('confirmModal').classList.remove('open'); confirmCb = null; }
-document.getElementById('confirm-ok-btn').addEventListener('click', () => {
-  const cb = confirmCb;
-  closeConfirm();
-  if (cb) cb();
-});
-
-// ════════════════════════════════════════════════════════════════
-//  SETTINGS
-// ════════════════════════════════════════════════════════════════
-function renderSettings() {
-  document.getElementById('setting-manager-name').value = getMyName();
-  document.getElementById('account-email').textContent = currentAccount?.username || '—';
-  document.getElementById('account-job-count').textContent = getMyAuthorisedJobs().length;
-  if (isAdmin) {
-    document.getElementById('admin-panel').style.display = 'block';
-    document.getElementById('admin-name').textContent = currentAccount.name;
-    document.getElementById('setting-client-id').value = getClientId();
-    document.getElementById('setting-admin-email').value = getAdminEmail();
-    renderAdminJobs();
-    renderAdminManagers();
-  } else {
-    document.getElementById('admin-panel').style.display = 'none';
-  }
-}
-
-function saveProfile() {
-  const name = document.getElementById('setting-manager-name').value.trim();
-  const local = loadLocal();
-  local.managerName = name;
-  saveLocal(local);
-  showToast('✅ Profile Saved', 'success');
-  renderJobs();
-}
-
-function switchAdminTab(tab, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
-  document.getElementById('admin-tab-' + tab).style.display = 'block';
-}
-
-function renderAdminJobs() {
-  const active = cloudConfig.jobs.filter(j => !j.archived);
-  const archived = cloudConfig.jobs.filter(j => j.archived);
-  const aEl = document.getElementById('admin-active-jobs');
-  if (active.length === 0) {
-    aEl.innerHTML = `<div class="empty-state" style="padding:20px"><div class="ico">📋</div>No active jobs</div>`;
-  } else {
-    aEl.innerHTML = active.map(j => `
-      <div class="admin-job-row">
-        <div class="ajr-code">${escHtml(jobFullCode(j))}</div>
-        <div class="ajr-info">📁 ${escHtml(ROOT_FOLDER)}/${escHtml(jobFullCode(j))}</div>
-        <div class="ajr-actions">
-          <button class="mini-btn danger" onclick="archiveJob('${j.id}')">Archive</button>
-        </div>
-      </div>
-    `).join('');
-  }
-  const arEl = document.getElementById('admin-archived-jobs');
-  if (archived.length === 0) {
-    arEl.innerHTML = `<div class="empty-state" style="padding:20px"><div class="ico">📦</div>No archived jobs</div>`;
-  } else {
-    arEl.innerHTML = archived.map(j => `
-      <div class="admin-job-row archived">
-        <div class="ajr-code">${escHtml(jobFullCode(j))}</div>
-        <div class="ajr-info">📦 ${escHtml(ARCHIVE_SUBFOLDER)}/${escHtml(jobFullCode(j))}</div>
-        <div class="ajr-actions">
-          <button class="mini-btn" onclick="restoreJob('${j.id}')">Restore</button>
-        </div>
-      </div>
-    `).join('');
-  }
-}
-
-async function createNewJob() {
-  const number = document.getElementById('new-job-number').value.trim();
-  const name = document.getElementById('new-job-name').value.trim();
-  if (!number) { showToast('Enter Job Number', 'error'); return; }
-  if (!name) { showToast('Enter Job Name', 'error'); return; }
-  const fullCode = `${number} ${name}`;
-  if (cloudConfig.jobs.some(j => jobFullCode(j).toLowerCase() === fullCode.toLowerCase())) {
-    showToast('Job Already Exists', 'error'); return;
-  }
-  showToast('Creating Folder...', '');
-  await getToken();
-  try {
-    // Step 1: Create the folder
-    await ensureFolder(`${ROOT_FOLDER}/${fullCode}`);
-    // Step 2: Verify the folder really exists (catches silent network failures)
-    const verify = await fetch(`${spDriveBase()}/root:/${encodeURIPath(`${ROOT_FOLDER}/${fullCode}`)}`, {
-      headers: { Authorization: 'Bearer ' + currentToken }
-    });
-    if (!verify.ok) throw new Error('Folder creation could not be confirmed');
-    // Step 3: Now save to config
-    const newJob = { id: genId(), number, name, archived: false };
-    cloudConfig.jobs.push(newJob);
-    const adminEmail = getAdminEmail();
-    if (cloudConfig.managers[adminEmail]) {
-      cloudConfig.managers[adminEmail].jobIds.push(newJob.id);
-    }
-    await saveCloudConfig();
-    document.getElementById('new-job-number').value = '';
-    document.getElementById('new-job-name').value = '';
-    renderAdminJobs();
-    renderAdminManagers();
-    showToast(`✅ Job "${fullCode}" Created With Folder`, 'success');
-  } catch(e) {
-    showToast('Failed: ' + e.message, 'error');
-  }
-}
-
-function archiveJob(id) {
-  const job = cloudConfig.jobs.find(j => j.id === id);
-  if (!job) return;
-  confirmDialog(
-    `Archive ${jobFullCode(job)}?`,
-    `Folder will move to "${ROOT_FOLDER}/${ARCHIVE_SUBFOLDER}/" and all managers will lose access. Photos preserved.`,
-    async () => {
-      showToast('Archiving...', '');
-      await getToken();
-      try { await moveFolder(`${ROOT_FOLDER}/${jobFullCode(job)}`, `${ROOT_FOLDER}/${ARCHIVE_SUBFOLDER}`); }
-      catch(e) { showToast('Move Warning: ' + e.message, 'error'); }
-      job.archived = true;
-      Object.values(cloudConfig.managers).forEach(m => {
-        m.jobIds = m.jobIds.filter(jid => jid !== id);
-      });
-      await saveCloudConfig();
-      renderAdminJobs();
-      renderAdminManagers();
-      showToast('✅ Archived', 'success');
-    }
-  );
-}
-
-function restoreJob(id) {
-  const job = cloudConfig.jobs.find(j => j.id === id);
-  if (!job) return;
-  confirmDialog(
-    `Restore ${jobFullCode(job)}?`,
-    `Folder moves back to "${ROOT_FOLDER}/${jobFullCode(job)}". You'll need to re-authorise managers.`,
-    async () => {
-      showToast('Restoring...', '');
-      await getToken();
-      try { await moveFolder(`${ROOT_FOLDER}/${ARCHIVE_SUBFOLDER}/${jobFullCode(job)}`, ROOT_FOLDER); }
-      catch(e) { showToast('Move Warning: ' + e.message, 'error'); }
-      job.archived = false;
-      const adminEmail = getAdminEmail();
-      if (cloudConfig.managers[adminEmail] && !cloudConfig.managers[adminEmail].jobIds.includes(id)) {
-        cloudConfig.managers[adminEmail].jobIds.push(id);
-      }
-      await saveCloudConfig();
-      renderAdminJobs();
-      renderAdminManagers();
-      showToast('✅ Restored', 'success');
-    }
-  );
-}
-
-function renderAdminManagers() {
-  const list = document.getElementById('admin-managers-list');
-  const emails = Object.keys(cloudConfig.managers);
-  if (emails.length === 0) {
-    list.innerHTML = `<div class="empty-state"><div class="ico">👥</div>No managers yet.<br>They'll appear when they first sign in.</div>`;
-    return;
-  }
-  const activeJobs = cloudConfig.jobs.filter(j => !j.archived);
-  list.innerHTML = emails.map(email => {
-    const m = cloudConfig.managers[email];
-    const initials = (m.name || email).split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
-    const isAdminMgr = email === getAdminEmail();
-    const statusLabel = isAdminMgr ? 'ADMIN' : (m.jobIds.length > 0 ? 'AUTHORISED' : 'PENDING');
-    const statusClass = isAdminMgr ? 'active' : (m.jobIds.length > 0 ? 'active' : 'pending');
-    return `
-      <div class="mgr-card">
-        <div class="mgr-row">
-          <div class="mgr-icon">${escHtml(initials)}</div>
-          <div class="mgr-info">
-            <div class="mgr-name">${escHtml(m.name || '?')}</div>
-            <div class="mgr-email">${escHtml(email)}</div>
-          </div>
-          <div class="mgr-status ${statusClass}">${statusLabel}</div>
-        </div>
-        ${isAdminMgr ? '<div style="font-size:.75rem;color:var(--text-dim)">Admin has access to all active jobs automatically</div>'
-        : `<div class="job-checkboxes">
-            ${activeJobs.map(j => `
-              <label class="job-checkbox ${m.jobIds.includes(j.id) ? 'active' : ''}">
-                <input type="checkbox" ${m.jobIds.includes(j.id) ? 'checked' : ''} onchange="toggleAuth('${email}', '${j.id}', this.checked)">
-                ${escHtml(jobFullCode(j))}
-              </label>
-            `).join('')}
-          </div>
-          <div style="margin-top:10px"><button class="mini-btn danger" onclick="removeManager('${email}')">Remove Manager</button></div>`}
-      </div>
-    `;
-  }).join('');
-}
-
-async function toggleAuth(email, jobId, checked) {
-  const m = cloudConfig.managers[email];
-  if (!m) return;
-  if (checked) { if (!m.jobIds.includes(jobId)) m.jobIds.push(jobId); }
-  else { m.jobIds = m.jobIds.filter(id => id !== jobId); }
-  try { await saveCloudConfig(); renderAdminManagers(); }
-  catch(e) { showToast('Save Failed: ' + e.message, 'error'); }
-}
-
-function removeManager(email) {
-  confirmDialog(
-    'Remove Manager?',
-    `Remove ${email} from the system. They can re-register by signing in again.`,
-    async () => {
-      delete cloudConfig.managers[email];
-      await saveCloudConfig();
-      renderAdminManagers();
-      showToast('✅ Manager Removed', 'success');
-    }
-  );
-}
-
-async function saveAdminConfig() {
-  const cid = document.getElementById('setting-client-id').value.trim();
-  const ae = document.getElementById('setting-admin-email').value.trim().toLowerCase();
-  const local = loadLocal();
-  local.clientId = cid;
-  saveLocal(local);
-  cloudConfig.adminEmail = ae;
-  try { await saveCloudConfig(); showToast('✅ Config Saved', 'success'); }
-  catch(e) { showToast('Save Failed: ' + e.message, 'error'); }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  TOAST
-// ════════════════════════════════════════════════════════════════
-let toastTimer = null;
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.innerHTML = msg;
-  t.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = ''; }, 3000);
-}
-function showBigSuccess(msg) {
-  const t = document.getElementById('toast');
-  t.innerHTML = `<span class="big-icon">✅</span>${msg}`;
-  t.className = 'show success';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = ''; }, 3500);
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function setLoaderMsg(msg) { document.getElementById('loader-msg').textContent = msg; }
-function hideLoader() {
-  const l = document.getElementById('loader');
-  l.style.opacity = '0';
-  setTimeout(() => { l.style.display = 'none'; }, 400);
-}
-
-async function boot() {
-  if (typeof msal === 'undefined') { showError('Microsoft sign-in library failed to load. Reload the app.'); return; }
-  if (!getClientId()) { hideLoader(); setRootScreen('screen-firstrun'); return; }
-
-  setLoaderMsg('Connecting to Microsoft...');
-  try { await initMsal(); } catch(e) { showError(e.message); return; }
-
-  let loggedIn;
-  try { loggedIn = await checkExistingLogin(); }
-  catch(e) { showError('Login check failed: ' + e.message); return; }
-  if (!loggedIn) { hideLoader(); setRootScreen('screen-login'); return; }
-
-  setLoaderMsg('Loading from SharePoint...');
-  try {
-    await getToken();
-    if (!currentToken) return;
-    await loadCloudConfig();
-    await registerManagerIfNew();
-    isAdmin = currentAccount.username.toLowerCase() === getAdminEmail();
-    const myJobs = getMyAuthorisedJobs();
-    hideLoader();
-    if (myJobs.length === 0 && !isAdmin) {
-      document.getElementById('pending-name').textContent = currentAccount.name;
-      setRootScreen('screen-pending');
-    } else {
-      setRootScreen('screen-jobs');
-    }
-  } catch(e) {
-    console.error(e);
-    showError('Startup error: ' + e.message);
-  }
-}
-
-setTimeout(boot, 100);
-</script>
+<script type="module" src="./js/app.js"></script>
 </body>
 </html>
