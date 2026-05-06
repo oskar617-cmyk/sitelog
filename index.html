@@ -1532,6 +1532,21 @@ async function refreshGPS() {
   btn.classList.remove('spinning');
 }
 
+// Auto-refresh GPS when returning to the photo screen after app switch
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    const onPhoto = document.getElementById('screen-photo').classList.contains('active');
+    if (onPhoto && gpsEnabled) {
+      // Re-fetch silently
+      const btn = document.getElementById('gps-refresh');
+      if (btn) btn.classList.add('spinning');
+      acquireGPS().finally(() => {
+        if (btn) btn.classList.remove('spinning');
+      });
+    }
+  }
+});
+
 function setGpsStatus(text, dim = false) {
   const el = document.getElementById('gps-status');
   el.textContent = text;
@@ -2228,6 +2243,42 @@ async function boot() {
     console.error(e);
     showError('Startup error: ' + e.message);
   }
+}
+
+// Register service worker for fresh-on-open behaviour
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').then(reg => {
+      // Check for updates every time the app gains focus
+      reg.update();
+      // If a new service worker is waiting, tell it to activate immediately
+      if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New version is ready; reload to use it
+              newWorker.postMessage('SKIP_WAITING');
+            }
+          });
+        }
+      });
+    }).catch(e => console.warn('SW register failed:', e));
+    // When the SW takes control of the new version, reload the page once
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+    // Also force a check whenever the page becomes visible
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.getRegistration().then(reg => { if (reg) reg.update(); });
+      }
+    });
+  });
 }
 
 setTimeout(boot, 100);
