@@ -867,7 +867,14 @@ function showScreen(id) {
   if (id === 'screen-photo') {
     // Auto-enable GPS when entering photo screen
     const tg = document.getElementById('gps-toggle');
-    if (!tg.checked) { tg.checked = true; toggleGPS(true); }
+    if (!tg.checked) tg.checked = true;
+    gpsEnabled = true;
+    // Always refresh GPS on entry to this screen
+    const btn = document.getElementById('gps-refresh');
+    if (btn) btn.classList.add('spinning');
+    acquireGPS().finally(() => {
+      if (btn) btn.classList.remove('spinning');
+    });
   }
 }
 
@@ -1533,11 +1540,16 @@ async function refreshGPS() {
 }
 
 // Auto-refresh GPS when returning to the photo screen after app switch
+let lastHiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
+  if (document.visibilityState === 'hidden') {
+    lastHiddenAt = Date.now();
+  } else if (document.visibilityState === 'visible') {
+    // Only refresh if we were actually hidden for at least 1 second (real app switch)
+    const wasAwayMs = Date.now() - lastHiddenAt;
+    if (wasAwayMs < 1000) return;
     const onPhoto = document.getElementById('screen-photo').classList.contains('active');
     if (onPhoto && gpsEnabled) {
-      // Re-fetch silently
       const btn = document.getElementById('gps-refresh');
       if (btn) btn.classList.add('spinning');
       acquireGPS().finally(() => {
