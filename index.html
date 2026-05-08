@@ -342,16 +342,6 @@
   .cam-rec-overlay.visible { display: flex; }
   .cam-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: recDotBlink 1s ease-in-out infinite; }
   @keyframes recDotBlink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
-  /* Stamp overlay - shows on the video while recording (so it appears in the captured video) */
-  .cam-stamp-overlay {
-    position: absolute; bottom: 16px; left: 16px;
-    background: rgba(0,0,0,.65); color: #fff;
-    padding: 10px 14px; border-radius: 8px;
-    font-size: .78rem; line-height: 1.4; font-weight: 600;
-    max-width: calc(100% - 32px); z-index: 11;
-    display: none;
-  }
-  .cam-stamp-overlay.visible { display: block; }
   .cam-side-btn { background: var(--accent); border: none; color: #fff; padding: 14px 22px; border-radius: 12px; font-size: .9rem; font-weight: 700; font-family: var(--font); cursor: pointer; min-width: 100px; flex-shrink: 0; }
   .cam-side-btn:hover { background: var(--accent-light); }
   .cam-side-btn.empty { background: rgba(255,255,255,.15); color: #fff; }
@@ -576,11 +566,6 @@
       <div class="cam-rec-overlay" id="cam-rec-overlay">
         <div class="cam-rec-dot"></div>
         <div class="cam-rec-timer" id="cam-rec-timer">0:00</div>
-      </div>
-      <div class="cam-stamp-overlay" id="cam-stamp-overlay">
-        <div id="cam-stamp-line1"></div>
-        <div id="cam-stamp-line2"></div>
-        <div id="cam-stamp-line3"></div>
       </div>
       <div class="cam-top-bar">
         <div class="cam-counter" id="cam-counter">0 / 5</div>
@@ -1204,7 +1189,6 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let recordingStartTime = 0;
 let recordingTimer = null;
-let stampOverlayTimer = null;
 const MAX_VIDEO_SECONDS = 12;
 const VIDEO_TARGET_HEIGHT = 720; // 720p video
 
@@ -1251,8 +1235,6 @@ async function startCameraStream(withAudio) {
       video.onloadedmetadata = resolve;
     });
     loading.style.display = 'none';
-    // Start showing the live stamp overlay so it's visible during recording
-    if (camMode === 'video') startStampOverlayUpdates();
   } catch(e) {
     console.error('Camera error:', e);
     loading.innerHTML = `Camera unavailable: ${e.message}<br><br>Please grant camera and microphone permission and try again.`;
@@ -1261,7 +1243,6 @@ async function startCameraStream(withAudio) {
 
 function stopCameraStream() {
   stopRecording(false);
-  stopStampOverlayUpdates();
   if (camStream) {
     camStream.getTracks().forEach(t => t.stop());
     camStream = null;
@@ -1337,17 +1318,53 @@ function pickVideoMimeType() {
   return '';
 }
 
+// Canvas pipeline state for burnt-in stamp recording
+let recCanvas = null;
+let recCtx = null;
+let recAnimFrame = null;
+let recCanvasStream = null;
+let recAudioTrack = null;
+
 function startRecording() {
   if (!camStream) { showToast('Camera Not Ready', 'error'); return; }
   if (photos.length >= 5) { showToast('Max 5 Items Reached', 'error'); return; }
+  const video = document.getElementById('cam-video');
+  if (!video.videoWidth) { showToast('Camera Not Ready', 'error'); return; }
   recordedChunks = [];
+
+  // Set up an offscreen canvas matching the video size
+  recCanvas = document.createElement('canvas');
+  recCanvas.width = video.videoWidth;
+  recCanvas.height = video.videoHeight;
+  recCtx = recCanvas.getContext('2d');
+
+  // Pre-compute font size based on video resolution
+  const fontSize = Math.max(18, Math.round(recCanvas.width * 0.022));
+
+  // Draw loop: paint video frame + burn stamp
+  function drawFrame() {
+    if (!recCanvas) return;
+    recCtx.drawImage(video, 0, 0, recCanvas.width, recCanvas.height);
+    drawStampOnCanvas(recCtx, recCanvas.width, recCanvas.height, fontSize);
+    recAnimFrame = requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+
+  // Capture stream from canvas, plus audio from camera stream
+  recCanvasStream = recCanvas.captureStream(30); // 30fps
+  recAudioTrack = camStream.getAudioTracks()[0];
+  if (recAudioTrack) {
+    recCanvasStream.addTrack(recAudioTrack);
+  }
+
   const mimeType = pickVideoMimeType();
   try {
     mediaRecorder = mimeType
-      ? new MediaRecorder(camStream, { mimeType, videoBitsPerSecond: 2_500_000 })
-      : new MediaRecorder(camStream);
+      ? new MediaRecorder(recCanvasStream, { mimeType, videoBitsPerSecond: 2_500_000 })
+      : new MediaRecorder(recCanvasStream);
   } catch(e) {
     showToast('Video Not Supported On This Browser', 'error');
+    cleanupRecCanvas();
     return;
   }
   mediaRecorder.ondataavailable = e => {
@@ -1370,6 +1387,61 @@ function startRecording() {
   if (navigator.vibrate) navigator.vibrate(40);
 }
 
+function drawStampOnCanvas(ctx, w, h, fontSize) {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const dateLine = `${yyyy}/${mm}/${dd}  ${hh}:${mi}:${ss}`;
+  const addrLine = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
+  const byLine = `by ${getMyName()}`;
+  const lines = [dateLine, addrLine, byLine].filter(Boolean);
+
+  ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+  ctx.textBaseline = 'top';
+
+  const padding = Math.round(fontSize * 0.7);
+  const lineH = Math.round(fontSize * 1.35);
+  const widths = lines.map(l => ctx.measureText(l).width);
+  const maxW = Math.max(...widths);
+  const boxW = maxW + padding * 2;
+  const boxH = lines.length * lineH + padding * 2 - (lineH - fontSize);
+  const margin = Math.round(fontSize * 0.9);
+  const boxX = margin;
+  const boxY = h - boxH - margin;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, Math.round(fontSize * 0.4));
+    ctx.fill();
+  } else {
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+  }
+
+  ctx.fillStyle = '#ffffff';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, boxX + padding, boxY + padding + i * lineH);
+  });
+}
+
+function cleanupRecCanvas() {
+  if (recAnimFrame) { cancelAnimationFrame(recAnimFrame); recAnimFrame = null; }
+  if (recCanvasStream) {
+    recCanvasStream.getTracks().forEach(t => {
+      // Don't stop the audio track since it belongs to the main camera stream
+      if (t !== recAudioTrack) try { t.stop(); } catch(_) {}
+    });
+    recCanvasStream = null;
+  }
+  recCanvas = null;
+  recCtx = null;
+  recAudioTrack = null;
+}
+
 function updateRecTimer() {
   const elapsed = Math.min(MAX_VIDEO_SECONDS, (Date.now() - recordingStartTime) / 1000);
   const remaining = Math.max(0, MAX_VIDEO_SECONDS - elapsed);
@@ -1383,9 +1455,8 @@ function stopRecording(commit) {
   document.getElementById('cam-rec-overlay').classList.remove('visible');
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     if (!commit) {
-      // Discard
       mediaRecorder.ondataavailable = null;
-      mediaRecorder.onstop = null;
+      mediaRecorder.onstop = () => cleanupRecCanvas();
       try { mediaRecorder.stop(); } catch(_) {}
       mediaRecorder = null;
       recordedChunks = [];
@@ -1396,12 +1467,12 @@ function stopRecording(commit) {
 }
 
 function onRecordingStopped() {
+  cleanupRecCanvas();
   if (!recordedChunks.length) { mediaRecorder = null; return; }
   const mimeType = mediaRecorder?.mimeType || 'video/mp4';
   const blob = new Blob(recordedChunks, { type: mimeType });
   recordedChunks = [];
   mediaRecorder = null;
-  // Generate a thumbnail from the first frame
   generateVideoThumbnail(blob).then(thumbUrl => {
     const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
     photos.push({
@@ -1441,31 +1512,6 @@ function generateVideoThumbnail(blob) {
 }
 
 // ─── LIVE STAMP OVERLAY (shown on camera while recording, so it appears in video) ───
-function startStampOverlayUpdates() {
-  const ov = document.getElementById('cam-stamp-overlay');
-  ov.classList.add('visible');
-  refreshStampOverlay();
-  if (stampOverlayTimer) clearInterval(stampOverlayTimer);
-  stampOverlayTimer = setInterval(refreshStampOverlay, 1000);
-}
-function stopStampOverlayUpdates() {
-  if (stampOverlayTimer) { clearInterval(stampOverlayTimer); stampOverlayTimer = null; }
-  const ov = document.getElementById('cam-stamp-overlay');
-  if (ov) ov.classList.remove('visible');
-}
-function refreshStampOverlay() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mi = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-  document.getElementById('cam-stamp-line1').textContent = `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
-  document.getElementById('cam-stamp-line2').textContent = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
-  document.getElementById('cam-stamp-line3').textContent = `by ${getMyName()}`;
-}
-
 function updateCamUi() {
   document.getElementById('cam-counter').textContent = `${photos.length} / 5`;
   document.getElementById('cam-counter').classList.toggle('full', photos.length >= 5);
@@ -1662,6 +1708,10 @@ function openLightbox(idx) {
 }
 
 function closeLightbox() {
+  // Pause and reset any playing videos so audio stops
+  document.querySelectorAll('#lightbox-track video').forEach(v => {
+    try { v.pause(); v.currentTime = 0; v.removeAttribute('src'); v.load(); } catch(_) {}
+  });
   document.getElementById('lightbox').classList.remove('open');
 }
 
@@ -1708,6 +1758,10 @@ function goToLightbox(idx) {
   if (photos.length === 0) return;
   if (idx < 0) idx = photos.length - 1;
   if (idx >= photos.length) idx = 0;
+  // Pause any playing video before changing slide
+  document.querySelectorAll('#lightbox-track video').forEach(v => {
+    try { v.pause(); } catch(_) {}
+  });
   lbIndex = idx;
   positionTrack(true);
   // Update active thumb
@@ -2132,14 +2186,20 @@ async function savePhotos() {
   catch(e) { showToast('Folder Error: ' + e.message, 'error'); progress.classList.remove('visible'); return; }
 
   let success = 0;
-  for (let i = 0; i < photos.length; i++) {
-    const p = photos[i];
-    const suffix = photos.length > 1 ? ` (${i+1})` : '';
+  // Sort: photos first, videos last (preserving relative order within each group)
+  const sortedItems = [
+    ...photos.filter(p => p.kind !== 'video'),
+    ...photos.filter(p => p.kind === 'video')
+  ];
+  for (let i = 0; i < sortedItems.length; i++) {
+    const p = sortedItems[i];
+    const suffix = sortedItems.length > 1 ? ` (${i+1})` : '';
     const isVideo = p.kind === 'video';
     const ext = isVideo ? (p.ext || 'mp4') : 'jpg';
-    const filename = `${desc} ${jobName} ${dateStr} ${timeStr} by ${firstName}${suffix}.${ext}`;
-    label.textContent = `Uploading ${i+1} of ${photos.length}...`;
-    bar.style.width = ((i / photos.length) * 100) + '%';
+    const videoTag = isVideo ? ' Video' : '';
+    const filename = `${desc} ${jobName}${videoTag} ${dateStr} ${timeStr} by ${firstName}${suffix}.${ext}`;
+    label.textContent = `Uploading ${i+1} of ${sortedItems.length}...`;
+    bar.style.width = ((i / sortedItems.length) * 100) + '%';
     try { await uploadFile(folderPath, filename, p.blob); success++; }
     catch(e) { showToast(`Upload ${i+1} Failed: ${e.message}`, 'error'); }
   }
@@ -2147,7 +2207,7 @@ async function savePhotos() {
   label.textContent = `Done!`;
   setTimeout(() => {
     progress.classList.remove('visible');
-    if (success === photos.length) {
+    if (success === sortedItems.length) {
       showBigSuccess(`${success} Item${success>1?'s':''} Saved To AH Site`);
       resetSessionSilent();
     }
