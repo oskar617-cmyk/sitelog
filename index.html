@@ -157,6 +157,56 @@
   .photo-btn .btn-icon { font-size: 1.6rem; }
   .photo-btn .btn-label { font-size: .72rem; color: var(--text); text-align: center; font-weight: 500; line-height: 1.2; }
   .photo-btn .btn-count { font-weight: 700; font-size: .72rem; color: var(--accent-light); }
+
+  /* GROUPED LAYOUT - circle gallery in middle, cut-out side buttons */
+  .photo-actions-grouped { position: relative; display: flex; align-items: center; justify-content: center; gap: 0; margin: 18px 0; min-height: 110px; }
+  .photo-btn-side {
+    flex: 1; min-width: 0;
+    background: var(--surface); border: 2px solid var(--border);
+    padding: 18px 12px; cursor: pointer; transition: all .2s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; color: var(--text);
+    height: 110px; position: relative;
+  }
+  .photo-btn-side:hover { border-color: var(--accent); }
+  .photo-btn-side:active { transform: scale(.98); }
+  .photo-btn-side.primary { border-color: var(--accent); background: rgba(15,99,52,.12); }
+  .photo-btn-left {
+    border-radius: var(--radius) 0 0 var(--radius);
+    border-right: none;
+    padding-right: 38px;
+    /* Cut out a half-circle on the right edge */
+    -webkit-mask: radial-gradient(circle 38px at right center, transparent 38px, #000 39px);
+            mask: radial-gradient(circle 38px at right center, transparent 38px, #000 39px);
+  }
+  .photo-btn-right {
+    border-radius: 0 var(--radius) var(--radius) 0;
+    border-left: none;
+    padding-left: 38px;
+    /* Cut out a half-circle on the left edge */
+    -webkit-mask: radial-gradient(circle 38px at left center, transparent 38px, #000 39px);
+            mask: radial-gradient(circle 38px at left center, transparent 38px, #000 39px);
+  }
+  .photo-btn-circle {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    background: var(--accent); border: none; color: #fff;
+    cursor: pointer; transition: transform .1s, background .2s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    box-shadow: 0 4px 16px rgba(15,99,52,.5);
+    z-index: 2;
+  }
+  .photo-btn-circle:hover { background: var(--accent-light); }
+  .photo-btn-circle:active { transform: translate(-50%, -50%) scale(.92); }
+  .photo-btn-circle .btn-icon { font-size: 1.6rem; }
+  .photo-btn-circle .btn-label { font-size: .65rem; color: #fff; font-weight: 700; letter-spacing: .3px; }
+  .photo-btn-side .btn-icon { font-size: 1.5rem; }
+  .photo-btn-side .btn-label { font-size: .75rem; color: var(--text); text-align: center; font-weight: 600; line-height: 1.2; }
+  .photo-btn-side .btn-count { font-weight: 700; font-size: .7rem; color: var(--accent-light); }
+  .photo-btn-side.disabled, .photo-btn-circle.disabled { opacity: .4; pointer-events: none; }
   .photo-btn.disabled { opacity: .4; pointer-events: none; }
 
   .thumb-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
@@ -347,6 +397,9 @@
   .cam-side-btn.empty { background: rgba(255,255,255,.15); color: #fff; }
   .cam-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 20; transition: opacity .15s; }
   .cam-flash.flash { opacity: .8; }
+  .cam-rec-canvas-wrap { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }
+  .cam-rec-canvas-wrap.visible { display: flex; }
+  .cam-rec-canvas-wrap canvas { width: 100%; height: 100%; object-fit: cover; }
 
   /* PORTRAIT (default) — thumbs above the bottom bar at lower section */
   .cam-thumbs { padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; background: rgba(0,0,0,.85); flex-shrink: 0; align-items: center; min-height: 84px; }
@@ -507,18 +560,17 @@
       </div>
       <div class="mic-status" id="mic-status"></div>
     </div>
-    <div class="photo-actions">
-      <button class="photo-btn" id="btn-video" onclick="triggerVideo()">
+    <div class="photo-actions photo-actions-grouped">
+      <button class="photo-btn-side photo-btn-left" id="btn-video" onclick="triggerVideo()">
         <span class="btn-icon">🎥</span>
         <span class="btn-label">Take Video</span>
         <span class="btn-count">12s max</span>
       </button>
-      <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
+      <button class="photo-btn-circle" id="btn-gallery" onclick="triggerGallery()">
         <span class="btn-icon">🖼️</span>
-        <span class="btn-label">From Gallery</span>
-        <span class="btn-count">Multi-select</span>
+        <span class="btn-label">Gallery</span>
       </button>
-      <button class="photo-btn primary" id="btn-camera" onclick="triggerCamera()">
+      <button class="photo-btn-side photo-btn-right primary" id="btn-camera" onclick="triggerCamera()">
         <span class="btn-icon">📷</span>
         <span class="btn-label">Take Photo</span>
         <span class="btn-count" id="camera-count">0 / 5</span>
@@ -561,6 +613,7 @@
     <div class="cam-video-wrap">
       <div class="cam-loading" id="cam-loading">Starting camera...</div>
       <video id="cam-video" autoplay playsinline muted></video>
+      <div class="cam-rec-canvas-wrap" id="cam-rec-canvas-wrap"></div>
       <div class="cam-flash" id="cam-flash"></div>
       <!-- Recording overlay - shows on screen during video recording (so it appears in the captured video) -->
       <div class="cam-rec-overlay" id="cam-rec-overlay">
@@ -1332,11 +1385,17 @@ function startRecording() {
   if (!video.videoWidth) { showToast('Camera Not Ready', 'error'); return; }
   recordedChunks = [];
 
-  // Set up an offscreen canvas matching the video size
+  // Set up a canvas matching the video size, mounted visibly so user sees the burnt-in stamp
   recCanvas = document.createElement('canvas');
   recCanvas.width = video.videoWidth;
   recCanvas.height = video.videoHeight;
   recCtx = recCanvas.getContext('2d');
+  // Hide the live video and show the canvas overlay during recording
+  const wrap = document.getElementById('cam-rec-canvas-wrap');
+  wrap.innerHTML = '';
+  wrap.appendChild(recCanvas);
+  wrap.classList.add('visible');
+  video.style.visibility = 'hidden';
 
   // Pre-compute font size based on video resolution
   const fontSize = Math.max(18, Math.round(recCanvas.width * 0.022));
@@ -1437,6 +1496,14 @@ function cleanupRecCanvas() {
     });
     recCanvasStream = null;
   }
+  // Hide canvas overlay, show live video again
+  const wrap = document.getElementById('cam-rec-canvas-wrap');
+  if (wrap) {
+    wrap.classList.remove('visible');
+    wrap.innerHTML = '';
+  }
+  const video = document.getElementById('cam-video');
+  if (video) video.style.visibility = '';
   recCanvas = null;
   recCtx = null;
   recAudioTrack = null;
@@ -1513,6 +1580,12 @@ function generateVideoThumbnail(blob) {
 
 // ─── LIVE STAMP OVERLAY (shown on camera while recording, so it appears in video) ───
 function updateCamUi() {
+  // Always sort: photos first, videos last
+  photos.sort((a, b) => {
+    const av = a.kind === 'video' ? 1 : 0;
+    const bv = b.kind === 'video' ? 1 : 0;
+    return av - bv;
+  });
   document.getElementById('cam-counter').textContent = `${photos.length} / 5`;
   document.getElementById('cam-counter').classList.toggle('full', photos.length >= 5);
   const thumbs = document.getElementById('cam-thumbs');
@@ -1660,6 +1733,12 @@ function removePhoto(idx, ev) {
 }
 
 function renderThumbs() {
+  // Always sort: photos first, videos last (preserving relative order within each group)
+  photos.sort((a, b) => {
+    const av = a.kind === 'video' ? 1 : 0;
+    const bv = b.kind === 'video' ? 1 : 0;
+    return av - bv;
+  });
   const grid = document.getElementById('thumb-grid');
   document.getElementById('photo-count').textContent = photos.length;
   document.getElementById('camera-count').textContent = photos.length + ' / 5';
@@ -2186,20 +2265,30 @@ async function savePhotos() {
   catch(e) { showToast('Folder Error: ' + e.message, 'error'); progress.classList.remove('visible'); return; }
 
   let success = 0;
-  // Sort: photos first, videos last (preserving relative order within each group)
-  const sortedItems = [
-    ...photos.filter(p => p.kind !== 'video'),
-    ...photos.filter(p => p.kind === 'video')
-  ];
-  for (let i = 0; i < sortedItems.length; i++) {
-    const p = sortedItems[i];
-    const suffix = sortedItems.length > 1 ? ` (${i+1})` : '';
+  // Photos first, then videos (array already sorted via renderThumbs)
+  const photosOnly = photos.filter(p => p.kind !== 'video');
+  const videosOnly = photos.filter(p => p.kind === 'video');
+  const allItems = [...photosOnly, ...videosOnly];
+
+  // Counters reset per kind
+  let photoNum = 0;
+  let videoNum = 0;
+  for (let i = 0; i < allItems.length; i++) {
+    const p = allItems[i];
     const isVideo = p.kind === 'video';
     const ext = isVideo ? (p.ext || 'mp4') : 'jpg';
     const videoTag = isVideo ? ' Video' : '';
+    let suffix;
+    if (isVideo) {
+      videoNum++;
+      suffix = videosOnly.length > 1 ? ` (${videoNum})` : '';
+    } else {
+      photoNum++;
+      suffix = photosOnly.length > 1 ? ` (${photoNum})` : '';
+    }
     const filename = `${desc} ${jobName}${videoTag} ${dateStr} ${timeStr} by ${firstName}${suffix}.${ext}`;
-    label.textContent = `Uploading ${i+1} of ${sortedItems.length}...`;
-    bar.style.width = ((i / sortedItems.length) * 100) + '%';
+    label.textContent = `Uploading ${i+1} of ${allItems.length}...`;
+    bar.style.width = ((i / allItems.length) * 100) + '%';
     try { await uploadFile(folderPath, filename, p.blob); success++; }
     catch(e) { showToast(`Upload ${i+1} Failed: ${e.message}`, 'error'); }
   }
@@ -2207,7 +2296,7 @@ async function savePhotos() {
   label.textContent = `Done!`;
   setTimeout(() => {
     progress.classList.remove('visible');
-    if (success === sortedItems.length) {
+    if (success === allItems.length) {
       showBigSuccess(`${success} Item${success>1?'s':''} Saved To AH Site`);
       resetSessionSilent();
     }
