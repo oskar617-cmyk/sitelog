@@ -149,14 +149,14 @@
   .mic-status { font-size: .75rem; color: var(--text-dim); margin-top: 6px; min-height: 16px; padding-left: 2px; }
   .mic-status.recording { color: var(--danger); font-weight: 600; }
 
-  .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
-  .photo-btn { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px 10px; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text); }
+  .photo-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 18px 0; }
+  .photo-btn { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px 6px; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text); }
   .photo-btn:hover { border-color: var(--accent); }
   .photo-btn:active { transform: scale(.97); }
   .photo-btn.primary { border-color: var(--accent); background: rgba(15,99,52,.12); }
-  .photo-btn .btn-icon { font-size: 1.8rem; }
-  .photo-btn .btn-label { font-size: .8rem; color: var(--text); text-align: center; font-weight: 500; }
-  .photo-btn .btn-count { font-weight: 700; font-size: .85rem; color: var(--accent-light); }
+  .photo-btn .btn-icon { font-size: 1.6rem; }
+  .photo-btn .btn-label { font-size: .72rem; color: var(--text); text-align: center; font-weight: 500; line-height: 1.2; }
+  .photo-btn .btn-count { font-weight: 700; font-size: .72rem; color: var(--accent-light); }
   .photo-btn.disabled { opacity: .4; pointer-events: none; }
 
   .thumb-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
@@ -165,6 +165,8 @@
   .thumb-wrap:hover { border-color: var(--accent); }
   .thumb-remove { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,.85); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; font-size: .75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; z-index: 2; }
   .thumb-empty { aspect-ratio: 1; border-radius: 8px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 1.2rem; }
+  .thumb-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .7rem; padding-left: 2px; pointer-events: none; }
+  .cam-thumb-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .6rem; padding-left: 2px; pointer-events: none; }
 
   /* LIGHTBOX */
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.97); z-index: 800; display: none; flex-direction: column; }
@@ -178,9 +180,10 @@
   .lightbox-info { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,.7); padding: 8px 14px; border-radius: 16px; color: #fff; font-size: .8rem; font-weight: 600; z-index: 10; }
   .lightbox-thumbs { padding: 10px; display: flex; gap: 6px; justify-content: center; overflow-x: auto; background: rgba(0,0,0,.6); }
   .lightbox-thumbs::-webkit-scrollbar { display: none; }
-  .lightbox-thumb { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; cursor: pointer; opacity: .55; transition: opacity .15s, border-color .15s; }
+  .lightbox-thumb { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; cursor: pointer; opacity: .55; transition: opacity .15s, border-color .15s; position: relative; }
   .lightbox-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .lightbox-thumb.active { opacity: 1; border-color: var(--accent); }
+  .lightbox-thumb-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .55rem; padding-left: 2px; pointer-events: none; }
 
   .gps-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
   .gps-row .gps-icon { font-size: 1.3rem; flex-shrink: 0; }
@@ -319,9 +322,36 @@
   .cam-thumb { width: 60px; height: 60px; border-radius: 8px; overflow: hidden; border: 2px solid #fff; position: relative; cursor: pointer; flex-shrink: 0; }
   .cam-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .cam-thumb-x { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,.9); border: none; color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: .65rem; cursor: pointer; line-height: 1; }
-  .cam-shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 4px solid rgba(255,255,255,.4); cursor: pointer; flex-shrink: 0; transition: transform .1s; box-shadow: 0 0 0 4px rgba(0,0,0,.3); }
+  .cam-shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 4px solid rgba(255,255,255,.4); cursor: pointer; flex-shrink: 0; transition: transform .1s, background .2s, border-radius .2s; box-shadow: 0 0 0 4px rgba(0,0,0,.3); }
   .cam-shutter:active { transform: scale(.92); }
   .cam-shutter:disabled { background: var(--text-dim); pointer-events: none; }
+  .cam-shutter.video-mode { background: var(--danger); }
+  .cam-shutter.recording { background: var(--danger); border-radius: 14px; width: 56px; height: 56px; animation: recPulse 1s ease-in-out infinite; }
+  @keyframes recPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(0,0,0,.3), 0 0 0 0 rgba(255,92,92,.6); }
+    50%      { box-shadow: 0 0 0 4px rgba(0,0,0,.3), 0 0 0 12px rgba(255,92,92,0); }
+  }
+  /* Recording status overlay - top center */
+  .cam-rec-overlay {
+    position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.8); color: #fff;
+    padding: 6px 14px; border-radius: 18px;
+    display: none; align-items: center; gap: 8px;
+    font-weight: 700; font-size: .9rem; z-index: 11;
+  }
+  .cam-rec-overlay.visible { display: flex; }
+  .cam-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: recDotBlink 1s ease-in-out infinite; }
+  @keyframes recDotBlink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  /* Stamp overlay - shows on the video while recording (so it appears in the captured video) */
+  .cam-stamp-overlay {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,.65); color: #fff;
+    padding: 10px 14px; border-radius: 8px;
+    font-size: .78rem; line-height: 1.4; font-weight: 600;
+    max-width: calc(100% - 32px); z-index: 11;
+    display: none;
+  }
+  .cam-stamp-overlay.visible { display: block; }
   .cam-side-btn { background: var(--accent); border: none; color: #fff; padding: 14px 22px; border-radius: 12px; font-size: .9rem; font-weight: 700; font-family: var(--font); cursor: pointer; min-width: 100px; flex-shrink: 0; }
   .cam-side-btn:hover { background: var(--accent-light); }
   .cam-side-btn.empty { background: rgba(255,255,255,.15); color: #fff; }
@@ -488,6 +518,11 @@
       <div class="mic-status" id="mic-status"></div>
     </div>
     <div class="photo-actions">
+      <button class="photo-btn" id="btn-video" onclick="triggerVideo()">
+        <span class="btn-icon">🎥</span>
+        <span class="btn-label">Take Video</span>
+        <span class="btn-count">12s max</span>
+      </button>
       <button class="photo-btn" id="btn-gallery" onclick="triggerGallery()">
         <span class="btn-icon">🖼️</span>
         <span class="btn-label">From Gallery</span>
@@ -499,8 +534,8 @@
         <span class="btn-count" id="camera-count">0 / 5</span>
       </button>
     </div>
-    <input type="file" id="input-gallery" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
-    <div class="field-label">Photos (<span id="photo-count">0</span> / 5) — tap to enlarge</div>
+    <input type="file" id="input-gallery" accept="image/*,video/*" multiple style="display:none" onchange="handleFiles(this.files)">
+    <div class="field-label">Items (<span id="photo-count">0</span> / 5) — tap to enlarge</div>
     <div class="thumb-grid" id="thumb-grid"></div>
     <div class="gps-row">
       <span class="gps-icon">📍</span>
@@ -537,6 +572,16 @@
       <div class="cam-loading" id="cam-loading">Starting camera...</div>
       <video id="cam-video" autoplay playsinline muted></video>
       <div class="cam-flash" id="cam-flash"></div>
+      <!-- Recording overlay - shows on screen during video recording (so it appears in the captured video) -->
+      <div class="cam-rec-overlay" id="cam-rec-overlay">
+        <div class="cam-rec-dot"></div>
+        <div class="cam-rec-timer" id="cam-rec-timer">0:00</div>
+      </div>
+      <div class="cam-stamp-overlay" id="cam-stamp-overlay">
+        <div id="cam-stamp-line1"></div>
+        <div id="cam-stamp-line2"></div>
+        <div id="cam-stamp-line3"></div>
+      </div>
       <div class="cam-top-bar">
         <div class="cam-counter" id="cam-counter">0 / 5</div>
         <div class="cam-job-pill" id="cam-job-pill">Job</div>
@@ -546,7 +591,7 @@
     <div class="cam-thumbs" id="cam-thumbs"></div>
     <div class="cam-bottom-bar">
       <button class="cam-side-btn empty" id="cam-cancel" onclick="cancelCamera()">Cancel</button>
-      <button class="cam-shutter" id="cam-shutter" onclick="takePhoto()" aria-label="Take photo"></button>
+      <button class="cam-shutter" id="cam-shutter" onclick="onShutterClick()" aria-label="Capture"></button>
       <button class="cam-side-btn" id="cam-done" onclick="doneCamera()">Done</button>
     </div>
   </div>
@@ -964,6 +1009,7 @@ function cancelCameraFromBack() {
     while (photos.length > camPhotosBeforeOpen) {
       const p = photos.pop();
       URL.revokeObjectURL(p.url);
+      if (p.thumbUrl) URL.revokeObjectURL(p.thumbUrl);
     }
     renderThumbs();
   }
@@ -1153,30 +1199,51 @@ function selectJob(id) {
 // ════════════════════════════════════════════════════════════════
 let camStream = null;
 let camPhotosBeforeOpen = 0; // remember count when camera opened, to allow Cancel
+let camMode = 'photo'; // 'photo' | 'video'
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingStartTime = 0;
+let recordingTimer = null;
+let stampOverlayTimer = null;
+const MAX_VIDEO_SECONDS = 12;
+const VIDEO_TARGET_HEIGHT = 720; // 720p video
 
 async function triggerCamera() {
-  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
+  if (photos.length >= 5) { showToast('Max 5 Items Reached', 'error'); return; }
+  camMode = 'photo';
   camPhotosBeforeOpen = photos.length;
   document.getElementById('cam-job-pill').textContent = currentJob ? jobFullCode(currentJob) : '';
+  document.getElementById('cam-shutter').classList.remove('video-mode', 'recording');
   updateCamUi();
   navigateTo('screen-camera');
-  await startCameraStream();
+  await startCameraStream(false);
 }
 
-async function startCameraStream() {
+async function triggerVideo() {
+  if (photos.length >= 5) { showToast('Max 5 Items Reached', 'error'); return; }
+  camMode = 'video';
+  camPhotosBeforeOpen = photos.length;
+  document.getElementById('cam-job-pill').textContent = currentJob ? jobFullCode(currentJob) : '';
+  document.getElementById('cam-shutter').classList.add('video-mode');
+  document.getElementById('cam-shutter').classList.remove('recording');
+  updateCamUi();
+  navigateTo('screen-camera');
+  await startCameraStream(true);
+}
+
+async function startCameraStream(withAudio) {
   const loading = document.getElementById('cam-loading');
-  loading.textContent = 'Starting camera...';
+  loading.textContent = camMode === 'video' ? 'Starting camera + microphone...' : 'Starting camera...';
   loading.style.display = 'flex';
   try {
     if (camStream) stopCameraStream();
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      audio: false
-    });
+    const constraints = {
+      video: camMode === 'video'
+        ? { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: !!withAudio
+    };
+    camStream = await navigator.mediaDevices.getUserMedia(constraints);
     const video = document.getElementById('cam-video');
     video.srcObject = camStream;
     await new Promise(resolve => {
@@ -1184,13 +1251,17 @@ async function startCameraStream() {
       video.onloadedmetadata = resolve;
     });
     loading.style.display = 'none';
+    // Start showing the live stamp overlay so it's visible during recording
+    if (camMode === 'video') startStampOverlayUpdates();
   } catch(e) {
     console.error('Camera error:', e);
-    loading.innerHTML = `Camera unavailable: ${e.message}<br><br>Please grant camera permission and try again.`;
+    loading.innerHTML = `Camera unavailable: ${e.message}<br><br>Please grant camera and microphone permission and try again.`;
   }
 }
 
 function stopCameraStream() {
+  stopRecording(false);
+  stopStampOverlayUpdates();
   if (camStream) {
     camStream.getTracks().forEach(t => t.stop());
     camStream = null;
@@ -1199,8 +1270,20 @@ function stopCameraStream() {
   if (video) video.srcObject = null;
 }
 
+function onShutterClick() {
+  if (camMode === 'photo') {
+    takePhoto();
+  } else {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      stopRecording(true);
+    } else {
+      startRecording();
+    }
+  }
+}
+
 async function takePhoto() {
-  if (photos.length >= 5) { showToast('Max 5 Photos Reached', 'error'); return; }
+  if (photos.length >= 5) { showToast('Max 5 Items Reached', 'error'); return; }
   const video = document.getElementById('cam-video');
   if (!video.videoWidth) return;
   const shutter = document.getElementById('cam-shutter');
@@ -1226,9 +1309,9 @@ async function takePhoto() {
     if (gpsEnabled && gpsCoords) {
       blob = await stampGPS(blob);
     }
-    photos.push({ blob, url: URL.createObjectURL(blob), originalName: 'camera.jpg' });
+    photos.push({ blob, url: URL.createObjectURL(blob), originalName: 'camera.jpg', kind: 'photo' });
     updateCamUi();
-    renderThumbs(); // also update main screen thumbs underneath
+    renderThumbs();
   } catch(e) {
     console.error('Take photo error:', e);
     showToast('Failed To Capture: ' + e.message, 'error');
@@ -1237,22 +1320,175 @@ async function takePhoto() {
   }
 }
 
+// ─── VIDEO RECORDING ────────────────────────────────────────────
+function pickVideoMimeType() {
+  const candidates = [
+    'video/mp4;codecs=h264,aac',
+    'video/mp4',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm'
+  ];
+  for (const t of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
+      return t;
+    }
+  }
+  return '';
+}
+
+function startRecording() {
+  if (!camStream) { showToast('Camera Not Ready', 'error'); return; }
+  if (photos.length >= 5) { showToast('Max 5 Items Reached', 'error'); return; }
+  recordedChunks = [];
+  const mimeType = pickVideoMimeType();
+  try {
+    mediaRecorder = mimeType
+      ? new MediaRecorder(camStream, { mimeType, videoBitsPerSecond: 2_500_000 })
+      : new MediaRecorder(camStream);
+  } catch(e) {
+    showToast('Video Not Supported On This Browser', 'error');
+    return;
+  }
+  mediaRecorder.ondataavailable = e => {
+    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onstop = onRecordingStopped;
+  mediaRecorder.start();
+  recordingStartTime = Date.now();
+  document.getElementById('cam-shutter').classList.add('recording');
+  document.getElementById('cam-rec-overlay').classList.add('visible');
+  updateRecTimer();
+  recordingTimer = setInterval(() => {
+    const elapsed = (Date.now() - recordingStartTime) / 1000;
+    if (elapsed >= MAX_VIDEO_SECONDS) {
+      stopRecording(true);
+    } else {
+      updateRecTimer();
+    }
+  }, 200);
+  if (navigator.vibrate) navigator.vibrate(40);
+}
+
+function updateRecTimer() {
+  const elapsed = Math.min(MAX_VIDEO_SECONDS, (Date.now() - recordingStartTime) / 1000);
+  const remaining = Math.max(0, MAX_VIDEO_SECONDS - elapsed);
+  const sec = Math.ceil(remaining);
+  document.getElementById('cam-rec-timer').textContent = `${sec}s left`;
+}
+
+function stopRecording(commit) {
+  if (recordingTimer) { clearInterval(recordingTimer); recordingTimer = null; }
+  document.getElementById('cam-shutter').classList.remove('recording');
+  document.getElementById('cam-rec-overlay').classList.remove('visible');
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    if (!commit) {
+      // Discard
+      mediaRecorder.ondataavailable = null;
+      mediaRecorder.onstop = null;
+      try { mediaRecorder.stop(); } catch(_) {}
+      mediaRecorder = null;
+      recordedChunks = [];
+      return;
+    }
+    try { mediaRecorder.stop(); } catch(_) {}
+  }
+}
+
+function onRecordingStopped() {
+  if (!recordedChunks.length) { mediaRecorder = null; return; }
+  const mimeType = mediaRecorder?.mimeType || 'video/mp4';
+  const blob = new Blob(recordedChunks, { type: mimeType });
+  recordedChunks = [];
+  mediaRecorder = null;
+  // Generate a thumbnail from the first frame
+  generateVideoThumbnail(blob).then(thumbUrl => {
+    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    photos.push({
+      blob,
+      url: URL.createObjectURL(blob),
+      thumbUrl,
+      originalName: `video.${ext}`,
+      kind: 'video',
+      ext
+    });
+    updateCamUi();
+    renderThumbs();
+  });
+}
+
+function generateVideoThumbnail(blob) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(blob);
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'metadata';
+    v.src = url;
+    v.onloadeddata = () => {
+      try { v.currentTime = 0.1; } catch(_) {}
+    };
+    v.onseeked = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = v.videoWidth || 320;
+      canvas.height = v.videoHeight || 240;
+      canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(b => {
+        URL.revokeObjectURL(url);
+        resolve(b ? URL.createObjectURL(b) : '');
+      }, 'image/jpeg', 0.7);
+    };
+    v.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+  });
+}
+
+// ─── LIVE STAMP OVERLAY (shown on camera while recording, so it appears in video) ───
+function startStampOverlayUpdates() {
+  const ov = document.getElementById('cam-stamp-overlay');
+  ov.classList.add('visible');
+  refreshStampOverlay();
+  if (stampOverlayTimer) clearInterval(stampOverlayTimer);
+  stampOverlayTimer = setInterval(refreshStampOverlay, 1000);
+}
+function stopStampOverlayUpdates() {
+  if (stampOverlayTimer) { clearInterval(stampOverlayTimer); stampOverlayTimer = null; }
+  const ov = document.getElementById('cam-stamp-overlay');
+  if (ov) ov.classList.remove('visible');
+}
+function refreshStampOverlay() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('cam-stamp-line1').textContent = `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+  document.getElementById('cam-stamp-line2').textContent = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
+  document.getElementById('cam-stamp-line3').textContent = `by ${getMyName()}`;
+}
+
 function updateCamUi() {
   document.getElementById('cam-counter').textContent = `${photos.length} / 5`;
   document.getElementById('cam-counter').classList.toggle('full', photos.length >= 5);
   const thumbs = document.getElementById('cam-thumbs');
-  thumbs.innerHTML = photos.map((p, i) => `
-    <div class="cam-thumb">
-      <img src="${p.url}" alt="">
-      <button class="cam-thumb-x" onclick="removePhotoFromCam(${i})">✕</button>
-    </div>
-  `).join('');
+  thumbs.innerHTML = photos.map((p, i) => {
+    const isVideo = p.kind === 'video';
+    const src = isVideo ? (p.thumbUrl || '') : p.url;
+    return `
+      <div class="cam-thumb">
+        <img src="${src}" alt="">
+        ${isVideo ? '<div class="cam-thumb-play">▶</div>' : ''}
+        <button class="cam-thumb-x" onclick="removePhotoFromCam(${i})">✕</button>
+      </div>
+    `;
+  }).join('');
   // Disable shutter at max
   document.getElementById('cam-shutter').disabled = photos.length >= 5;
 }
 
 function removePhotoFromCam(idx) {
-  URL.revokeObjectURL(photos[idx].url);
+  const p = photos[idx];
+  URL.revokeObjectURL(p.url);
+  if (p.thumbUrl) URL.revokeObjectURL(p.thumbUrl);
   photos.splice(idx, 1);
   updateCamUi();
   renderThumbs();
@@ -1267,15 +1503,17 @@ function doneCamera() {
 }
 
 function cancelCamera() {
-  // Remove any photos taken in this session
+  // Remove any items taken in this session
   if (photos.length > camPhotosBeforeOpen) {
+    const newCount = photos.length - camPhotosBeforeOpen;
     confirmDialog(
-      'Discard Photos?',
-      `You took ${photos.length - camPhotosBeforeOpen} photo(s). Cancel will discard them.`,
+      'Discard Items?',
+      `You took ${newCount} item${newCount > 1 ? 's' : ''}. Cancel will discard them.`,
       () => {
         while (photos.length > camPhotosBeforeOpen) {
           const p = photos.pop();
           URL.revokeObjectURL(p.url);
+          if (p.thumbUrl) URL.revokeObjectURL(p.thumbUrl);
         }
         renderThumbs();
         doneCamera();
@@ -1304,20 +1542,34 @@ async function handleFiles(files) {
   if (files.length > remaining) showToast(`Only ${remaining} Slot(s) Left`, 'error');
 
   // Show processing state
-  if (toProcess.length > 1) showToast('Processing Photos...', '');
+  if (toProcess.length > 1) showToast('Processing Items...', '');
 
   for (const file of toProcess) {
     try {
-      // Step 1: compress to ~2MP
-      let blob = await compressTo2MP(file);
-      // Step 2: stamp GPS if enabled
-      if (gpsEnabled && gpsCoords) {
-        blob = await stampGPS(blob);
+      const isVideo = file.type.startsWith('video/');
+      if (isVideo) {
+        // Videos: just take as-is, generate thumbnail
+        const ext = file.name.split('.').pop() || 'mp4';
+        const thumbUrl = await generateVideoThumbnail(file);
+        photos.push({
+          blob: file,
+          url: URL.createObjectURL(file),
+          thumbUrl,
+          originalName: file.name,
+          kind: 'video',
+          ext
+        });
+      } else {
+        // Photos: compress + stamp
+        let blob = await compressTo2MP(file);
+        if (gpsEnabled && gpsCoords) {
+          blob = await stampGPS(blob);
+        }
+        photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name, kind: 'photo' });
       }
-      photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name });
     } catch(e) {
-      console.error('Process photo error:', e);
-      showToast('Failed To Process One Photo', 'error');
+      console.error('Process item error:', e);
+      showToast('Failed To Process One Item', 'error');
     }
   }
   renderThumbs();
@@ -1354,7 +1606,9 @@ async function compressTo2MP(file) {
 
 function removePhoto(idx, ev) {
   if (ev) ev.stopPropagation();
-  URL.revokeObjectURL(photos[idx].url);
+  const p = photos[idx];
+  URL.revokeObjectURL(p.url);
+  if (p.thumbUrl) URL.revokeObjectURL(p.thumbUrl);
   photos.splice(idx, 1);
   renderThumbs();
 }
@@ -1366,12 +1620,19 @@ function renderThumbs() {
   const max = photos.length >= 5;
   document.getElementById('btn-camera').classList.toggle('disabled', max);
   document.getElementById('btn-gallery').classList.toggle('disabled', max);
-  let html = photos.map((p, i) => `
+  const btnVideo = document.getElementById('btn-video');
+  if (btnVideo) btnVideo.classList.toggle('disabled', max);
+  let html = photos.map((p, i) => {
+    const isVideo = p.kind === 'video';
+    const src = isVideo ? (p.thumbUrl || '') : p.url;
+    return `
     <div class="thumb-wrap" onclick="openLightbox(${i})">
-      <img src="${p.url}" alt="">
+      <img src="${src}" alt="">
+      ${isVideo ? '<div class="thumb-play">▶</div>' : ''}
       <button class="thumb-remove" onclick="removePhoto(${i}, event)">✕</button>
     </div>
-  `).join('');
+  `;
+  }).join('');
   for (let i = photos.length; i < 5; i++) html += `<div class="thumb-empty">+</div>`;
   grid.innerHTML = html;
   document.getElementById('btn-save').disabled = photos.length === 0;
@@ -1409,16 +1670,26 @@ function renderLightbox() {
   if (lbIndex >= photos.length) lbIndex = photos.length - 1;
   if (lbIndex < 0) lbIndex = 0;
   document.getElementById('lightbox-info').textContent = `${lbIndex + 1} / ${photos.length}`;
-  // Track: render all slides
+  // Track: render all slides (video for video items, img for photos)
   const track = document.getElementById('lightbox-track');
-  track.innerHTML = photos.map(p => `<div class="lightbox-slide"><img src="${p.url}" alt=""></div>`).join('');
+  track.innerHTML = photos.map((p, i) => {
+    if (p.kind === 'video') {
+      return `<div class="lightbox-slide"><video src="${p.url}" controls playsinline preload="metadata" style="max-width:100%;max-height:100%"></video></div>`;
+    }
+    return `<div class="lightbox-slide"><img src="${p.url}" alt=""></div>`;
+  }).join('');
   // Thumbnail strip
   const tEl = document.getElementById('lightbox-thumbs');
-  tEl.innerHTML = photos.map((p, i) => `
+  tEl.innerHTML = photos.map((p, i) => {
+    const src = p.kind === 'video' ? (p.thumbUrl || '') : p.url;
+    const playIcon = p.kind === 'video' ? '<div class="lightbox-thumb-play">▶</div>' : '';
+    return `
     <div class="lightbox-thumb ${i === lbIndex ? 'active' : ''}" onclick="goToLightbox(${i})">
-      <img src="${p.url}" alt="">
+      <img src="${src}" alt="">
+      ${playIcon}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function positionTrack(animate = true) {
@@ -1864,7 +2135,9 @@ async function savePhotos() {
   for (let i = 0; i < photos.length; i++) {
     const p = photos[i];
     const suffix = photos.length > 1 ? ` (${i+1})` : '';
-    const filename = `${desc} ${jobName} ${dateStr} ${timeStr} by ${firstName}${suffix}.jpg`;
+    const isVideo = p.kind === 'video';
+    const ext = isVideo ? (p.ext || 'mp4') : 'jpg';
+    const filename = `${desc} ${jobName} ${dateStr} ${timeStr} by ${firstName}${suffix}.${ext}`;
     label.textContent = `Uploading ${i+1} of ${photos.length}...`;
     bar.style.width = ((i / photos.length) * 100) + '%';
     try { await uploadFile(folderPath, filename, p.blob); success++; }
@@ -1875,7 +2148,7 @@ async function savePhotos() {
   setTimeout(() => {
     progress.classList.remove('visible');
     if (success === photos.length) {
-      showBigSuccess(`${success} Photo${success>1?'s':''} Saved To AH Site`);
+      showBigSuccess(`${success} Item${success>1?'s':''} Saved To AH Site`);
       resetSessionSilent();
     }
   }, 800);
@@ -1948,7 +2221,10 @@ function encodeURIPath(p) { return p.split('/').map(s => encodeURIComponent(s)).
 // ════════════════════════════════════════════════════════════════
 function resetSession() { resetSessionSilent(); showToast('Session Reset', ''); }
 function resetSessionSilent() {
-  photos.forEach(p => URL.revokeObjectURL(p.url));
+  photos.forEach(p => {
+    URL.revokeObjectURL(p.url);
+    if (p.thumbUrl) URL.revokeObjectURL(p.thumbUrl);
+  });
   photos = [];
   const dEl = document.getElementById('photo-desc'); if (dEl) dEl.value = '';
   const up = document.getElementById('upload-progress'); if (up) up.classList.remove('visible');
