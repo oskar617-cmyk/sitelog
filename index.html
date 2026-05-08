@@ -174,23 +174,23 @@
   .photo-btn-left {
     border-radius: var(--radius) 0 0 var(--radius);
     border-right: none;
-    padding-right: 38px;
+    padding-right: 48px;
     /* Cut out a half-circle on the right edge */
-    -webkit-mask: radial-gradient(circle 38px at right center, transparent 38px, #000 39px);
-            mask: radial-gradient(circle 38px at right center, transparent 38px, #000 39px);
+    -webkit-mask: radial-gradient(circle 48px at right center, transparent 48px, #000 49px);
+            mask: radial-gradient(circle 48px at right center, transparent 48px, #000 49px);
   }
   .photo-btn-right {
     border-radius: 0 var(--radius) var(--radius) 0;
     border-left: none;
-    padding-left: 38px;
+    padding-left: 48px;
     /* Cut out a half-circle on the left edge */
-    -webkit-mask: radial-gradient(circle 38px at left center, transparent 38px, #000 39px);
-            mask: radial-gradient(circle 38px at left center, transparent 38px, #000 39px);
+    -webkit-mask: radial-gradient(circle 48px at left center, transparent 48px, #000 49px);
+            mask: radial-gradient(circle 48px at left center, transparent 48px, #000 49px);
   }
   .photo-btn-circle {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
-    width: 70px; height: 70px;
+    width: 88px; height: 88px;
     border-radius: 50%;
     background: var(--accent); border: none; color: #fff;
     cursor: pointer; transition: transform .1s, background .2s;
@@ -201,8 +201,8 @@
   }
   .photo-btn-circle:hover { background: var(--accent-light); }
   .photo-btn-circle:active { transform: translate(-50%, -50%) scale(.92); }
-  .photo-btn-circle .btn-icon { font-size: 1.6rem; }
-  .photo-btn-circle .btn-label { font-size: .65rem; color: #fff; font-weight: 700; letter-spacing: .3px; }
+  .photo-btn-circle .btn-icon { font-size: 1.9rem; }
+  .photo-btn-circle .btn-label { font-size: .7rem; color: #fff; font-weight: 700; letter-spacing: .3px; }
   .photo-btn-side .btn-icon { font-size: 1.5rem; }
   .photo-btn-side .btn-label { font-size: .75rem; color: var(--text); text-align: center; font-weight: 600; line-height: 1.2; }
   .photo-btn-side .btn-count { font-weight: 700; font-size: .7rem; color: var(--accent-light); }
@@ -400,6 +400,16 @@
   .cam-rec-canvas-wrap { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }
   .cam-rec-canvas-wrap.visible { display: flex; }
   .cam-rec-canvas-wrap canvas { width: 100%; height: 100%; object-fit: cover; }
+  /* Live stamp overlay shown on camera view (mirrors the burnt-in stamp) */
+  .cam-live-stamp {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,.65); color: #fff;
+    padding: 8px 12px; border-radius: 8px;
+    font-size: .78rem; line-height: 1.4; font-weight: 600;
+    max-width: calc(100% - 32px); z-index: 6;
+    display: none; pointer-events: none;
+  }
+  .cam-live-stamp.visible { display: block; }
 
   /* PORTRAIT (default) — thumbs above the bottom bar at lower section */
   .cam-thumbs { padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; background: rgba(0,0,0,.85); flex-shrink: 0; align-items: center; min-height: 84px; }
@@ -614,6 +624,11 @@
       <div class="cam-loading" id="cam-loading">Starting camera...</div>
       <video id="cam-video" autoplay playsinline muted></video>
       <div class="cam-rec-canvas-wrap" id="cam-rec-canvas-wrap"></div>
+      <div class="cam-live-stamp" id="cam-live-stamp">
+        <div id="cam-live-stamp-line1"></div>
+        <div id="cam-live-stamp-line2"></div>
+        <div id="cam-live-stamp-line3"></div>
+      </div>
       <div class="cam-flash" id="cam-flash"></div>
       <!-- Recording overlay - shows on screen during video recording (so it appears in the captured video) -->
       <div class="cam-rec-overlay" id="cam-rec-overlay">
@@ -1288,6 +1303,8 @@ async function startCameraStream(withAudio) {
       video.onloadedmetadata = resolve;
     });
     loading.style.display = 'none';
+    // Show live stamp overlay (mirrors what gets burnt into photos/videos)
+    startLiveStampUpdates();
   } catch(e) {
     console.error('Camera error:', e);
     loading.innerHTML = `Camera unavailable: ${e.message}<br><br>Please grant camera and microphone permission and try again.`;
@@ -1296,12 +1313,44 @@ async function startCameraStream(withAudio) {
 
 function stopCameraStream() {
   stopRecording(false);
+  stopLiveStampUpdates();
   if (camStream) {
     camStream.getTracks().forEach(t => t.stop());
     camStream = null;
   }
   const video = document.getElementById('cam-video');
   if (video) video.srcObject = null;
+}
+
+// Live stamp shown over camera view (visible before/during taking, mirrors burnt-in stamp)
+let liveStampTimer = null;
+function startLiveStampUpdates() {
+  const ov = document.getElementById('cam-live-stamp');
+  if (!ov) return;
+  ov.classList.add('visible');
+  refreshLiveStamp();
+  if (liveStampTimer) clearInterval(liveStampTimer);
+  liveStampTimer = setInterval(refreshLiveStamp, 1000);
+}
+function stopLiveStampUpdates() {
+  if (liveStampTimer) { clearInterval(liveStampTimer); liveStampTimer = null; }
+  const ov = document.getElementById('cam-live-stamp');
+  if (ov) ov.classList.remove('visible');
+}
+function refreshLiveStamp() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const l1 = document.getElementById('cam-live-stamp-line1');
+  const l2 = document.getElementById('cam-live-stamp-line2');
+  const l3 = document.getElementById('cam-live-stamp-line3');
+  if (l1) l1.textContent = `${yyyy}/${mm}/${dd}  ${hh}:${mi}:${ss}`;
+  if (l2) l2.textContent = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
+  if (l3) l3.textContent = `by ${getMyName()}`;
 }
 
 function onShutterClick() {
@@ -1396,6 +1445,8 @@ function startRecording() {
   wrap.appendChild(recCanvas);
   wrap.classList.add('visible');
   video.style.visibility = 'hidden';
+  // Hide CSS live stamp — canvas has its own burnt-in version
+  document.getElementById('cam-live-stamp').classList.remove('visible');
 
   // Pre-compute font size based on video resolution
   const fontSize = Math.max(18, Math.round(recCanvas.width * 0.022));
@@ -1504,6 +1555,11 @@ function cleanupRecCanvas() {
   }
   const video = document.getElementById('cam-video');
   if (video) video.style.visibility = '';
+  // Re-show CSS live stamp
+  if (camStream) {
+    const ov = document.getElementById('cam-live-stamp');
+    if (ov) ov.classList.add('visible');
+  }
   recCanvas = null;
   recCtx = null;
   recAudioTrack = null;
