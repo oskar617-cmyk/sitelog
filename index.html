@@ -586,7 +586,7 @@
         <span class="btn-count" id="camera-count">0 / 5</span>
       </button>
     </div>
-    <input type="file" id="input-gallery" accept="image/*,video/*" multiple style="display:none" onchange="handleFiles(this.files)">
+    <input type="file" id="input-gallery" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
     <div class="field-label">Items (<span id="photo-count">0</span> / 5) — tap to enlarge</div>
     <div class="thumb-grid" id="thumb-grid"></div>
     <div class="gps-row">
@@ -1717,34 +1717,47 @@ async function handleFiles(files) {
   if (files.length > remaining) showToast(`Only ${remaining} Slot(s) Left`, 'error');
 
   // Show processing state
-  if (toProcess.length > 1) showToast('Processing Items...', '');
+  if (toProcess.length > 1) showToast('Processing Photos...', '');
 
   for (const file of toProcess) {
     try {
-      const isVideo = file.type.startsWith('video/');
-      if (isVideo) {
-        // Videos: just take as-is, generate thumbnail
-        const ext = file.name.split('.').pop() || 'mp4';
-        const thumbUrl = await generateVideoThumbnail(file);
-        photos.push({
-          blob: file,
-          url: URL.createObjectURL(file),
-          thumbUrl,
-          originalName: file.name,
-          kind: 'video',
-          ext
-        });
-      } else {
-        // Photos: compress + stamp
-        let blob = await compressTo2MP(file);
-        if (gpsEnabled && gpsCoords) {
-          blob = await stampGPS(blob);
-        }
-        photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name, kind: 'photo' });
+      // Block any video files (gallery is photo-only)
+      if (file.type.startsWith('video/')) {
+        showToast('Videos From Gallery Not Allowed — Use Take Video', 'error');
+        continue;
       }
+
+      // Read EXIF first (date taken + GPS where photo was taken)
+      const exif = await readExifFromFile(file);
+
+      // Compress to ~2MP
+      let blob = await compressTo2MP(file);
+
+      // Build stamp options: prefer EXIF, fall back to current values
+      const stampOpts = {};
+      if (exif.date) {
+        stampOpts.dateOverride = exif.date;
+      }
+      if (exif.latitude != null && exif.longitude != null) {
+        // Use EXIF GPS — reverse-geocode to readable address
+        stampOpts.coordsOverride = { latitude: exif.latitude, longitude: exif.longitude };
+        try {
+          stampOpts.addressOverride = await reverseGeocodeFromExif(exif.latitude, exif.longitude);
+        } catch(_) { /* fall back to coords string */ }
+      }
+
+      // Burn the stamp (always, since gallery photos should always carry a stamp)
+      // If no EXIF GPS AND no current GPS, the address line will be empty (skipped)
+      const hasEnoughForStamp = stampOpts.dateOverride || gpsEnabled || stampOpts.addressOverride;
+      if (hasEnoughForStamp || true) {
+        // Always stamp — even if no GPS, at least date + manager name appear
+        blob = await stampGPS(blob, stampOpts);
+      }
+
+      photos.push({ blob, url: URL.createObjectURL(blob), originalName: file.name, kind: 'photo' });
     } catch(e) {
-      console.error('Process item error:', e);
-      showToast('Failed To Process One Item', 'error');
+      console.error('Process photo error:', e);
+      showToast('Failed To Process One Photo', 'error');
     }
   }
   renderThumbs();
@@ -2097,7 +2110,8 @@ function abbreviateState(state) {
   return map[state] || state;
 }
 
-async function stampGPS(blob) {
+async function stampGPS(blob, opts) {
+  // opts: { dateOverride?: Date, addressOverride?: string, coordsOverride?: {latitude, longitude} }
   return new Promise(resolve => {
     const img = new Image();
     const url = URL.createObjectURL(blob);
@@ -2107,13 +2121,22 @@ async function stampGPS(blob) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
 
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
+      const stampDate = (opts && opts.dateOverride) || new Date();
+      const yyyy = stampDate.getFullYear();
+      const mm = String(stampDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(stampDate.getDate()).padStart(2, '0');
+      const hh = String(stampDate.getHours()).padStart(2, '0');
+      const mi = String(stampDate.getMinutes()).padStart(2, '0');
       const dateStr = `${yyyy}/${mm}/${dd}`;
-      const timeStr = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
-      const addr = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
+      const timeStr = `${hh}:${mi}`;
+      let addr;
+      if (opts && opts.addressOverride !== undefined) {
+        addr = opts.addressOverride;
+      } else if (opts && opts.coordsOverride) {
+        addr = `${opts.coordsOverride.latitude.toFixed(5)}, ${opts.coordsOverride.longitude.toFixed(5)}`;
+      } else {
+        addr = gpsAddress || (gpsCoords ? `${gpsCoords.latitude.toFixed(5)}, ${gpsCoords.longitude.toFixed(5)}` : '');
+      }
       const manager = getMyName();
 
       const line1 = `${dateStr}  ${timeStr}`;
@@ -2148,6 +2171,127 @@ async function stampGPS(blob) {
     };
     img.src = url;
   });
+}
+
+// ─── EXIF PARSER (minimal — reads DateTimeOriginal + GPSLatitude/Longitude only) ───
+async function readExifFromFile(file) {
+  // Returns { date?: Date, latitude?: number, longitude?: number } or {}
+  if (!file || !file.type || !file.type.startsWith('image/jpeg')) return {};
+  try {
+    const buf = await file.slice(0, Math.min(file.size, 256 * 1024)).arrayBuffer();
+    const view = new DataView(buf);
+    if (view.getUint16(0) !== 0xFFD8) return {}; // not JPEG
+
+    let offset = 2;
+    while (offset < view.byteLength - 4) {
+      const marker = view.getUint16(offset);
+      if (marker === 0xFFE1) {
+        // APP1 segment (EXIF)
+        const exifLength = view.getUint16(offset + 2);
+        const exifStart = offset + 4;
+        if (view.getUint32(exifStart) !== 0x45786966) { offset += 2 + exifLength; continue; }
+        return parseExifTiff(view, exifStart + 6); // skip "Exif\0\0"
+      } else if ((marker & 0xFF00) !== 0xFF00) {
+        break;
+      } else {
+        const segLen = view.getUint16(offset + 2);
+        offset += 2 + segLen;
+      }
+    }
+  } catch(e) { console.warn('EXIF read error:', e); }
+  return {};
+}
+
+function parseExifTiff(view, tiffStart) {
+  const result = {};
+  try {
+    const byteOrder = view.getUint16(tiffStart);
+    const little = byteOrder === 0x4949;
+    const get16 = (o) => view.getUint16(o, little);
+    const get32 = (o) => view.getUint32(o, little);
+
+    if (get16(tiffStart + 2) !== 0x002A) return {};
+    const ifd0Offset = get32(tiffStart + 4);
+
+    // Parse IFD0 to find ExifIFD pointer (0x8769) and GPSIFD pointer (0x8825)
+    let exifIfdOffset = 0, gpsIfdOffset = 0;
+    const ifd0Start = tiffStart + ifd0Offset;
+    const ifd0Count = get16(ifd0Start);
+    for (let i = 0; i < ifd0Count; i++) {
+      const entry = ifd0Start + 2 + i * 12;
+      const tag = get16(entry);
+      if (tag === 0x8769) exifIfdOffset = get32(entry + 8);
+      if (tag === 0x8825) gpsIfdOffset = get32(entry + 8);
+    }
+
+    // Parse Exif sub-IFD for DateTimeOriginal (0x9003)
+    if (exifIfdOffset) {
+      const exStart = tiffStart + exifIfdOffset;
+      const count = get16(exStart);
+      for (let i = 0; i < count; i++) {
+        const entry = exStart + 2 + i * 12;
+        const tag = get16(entry);
+        if (tag === 0x9003) {
+          const len = get32(entry + 4);
+          const valueOffset = get32(entry + 8);
+          const strStart = tiffStart + valueOffset;
+          let str = '';
+          for (let j = 0; j < len - 1 && j < 19; j++) str += String.fromCharCode(view.getUint8(strStart + j));
+          // Format: "YYYY:MM:DD HH:MM:SS"
+          const m = str.match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+          if (m) {
+            result.date = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+          }
+          break;
+        }
+      }
+    }
+
+    // Parse GPS sub-IFD for lat/lon (tags 0x0001 N/S, 0x0002 lat, 0x0003 E/W, 0x0004 lon)
+    if (gpsIfdOffset) {
+      const gpsStart = tiffStart + gpsIfdOffset;
+      const count = get16(gpsStart);
+      let latRef = 'N', lonRef = 'E', latVal = null, lonVal = null;
+      const readRational3 = (offset) => {
+        // 3 rationals (deg, min, sec), each rational = 2x uint32 (numerator, denominator)
+        const valOff = get32(offset + 8);
+        const base = tiffStart + valOff;
+        const r = (off) => {
+          const num = get32(off);
+          const den = get32(off + 4);
+          return den === 0 ? 0 : num / den;
+        };
+        return r(base) + r(base + 8) / 60 + r(base + 16) / 3600;
+      };
+      for (let i = 0; i < count; i++) {
+        const entry = gpsStart + 2 + i * 12;
+        const tag = get16(entry);
+        if (tag === 0x0001) latRef = String.fromCharCode(view.getUint8(entry + 8));
+        else if (tag === 0x0003) lonRef = String.fromCharCode(view.getUint8(entry + 8));
+        else if (tag === 0x0002) latVal = readRational3(entry);
+        else if (tag === 0x0004) lonVal = readRational3(entry);
+      }
+      if (latVal != null && lonVal != null) {
+        result.latitude = latRef === 'S' ? -latVal : latVal;
+        result.longitude = lonRef === 'W' ? -lonVal : lonVal;
+      }
+    }
+  } catch(e) { console.warn('EXIF parse error:', e); }
+  return result;
+}
+
+// Reverse-geocode lat/lon to a readable address string (with cache)
+const exifAddressCache = new Map();
+async function reverseGeocodeFromExif(lat, lon) {
+  const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+  if (exifAddressCache.has(key)) return exifAddressCache.get(key);
+  try {
+    const addr = await reverseGeocode(lat, lon);
+    exifAddressCache.set(key, addr);
+    return addr;
+  } catch(e) {
+    return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
