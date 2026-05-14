@@ -50,8 +50,8 @@
 
   .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
   .topbar .app-title { font-weight: 800; font-size: 1.1rem; color: var(--accent); flex: 1; }
-  .topbar .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); font-size: .9rem; }
-  .topbar .icon-btn:hover { border-color: var(--accent); }
+  .topbar .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; width: 40px; height: 40px; padding: 0; cursor: pointer; color: var(--text); display: flex; align-items: center; justify-content: center; }
+  .topbar .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
   .topbar .icon-btn.admin { border-color: var(--admin); color: var(--admin); }
   .topbar .round-back {
     width: 44px; height: 44px; border-radius: 50%;
@@ -112,6 +112,7 @@
   .job-card.dragging { opacity: .4; transform: scale(1.05); z-index: 10; box-shadow: 0 12px 32px rgba(0,0,0,.6); }
   .job-card.drag-over { box-shadow: 0 0 0 4px var(--accent2), 0 4px 16px rgba(15,99,52,.3); }
   .reorder-hint { font-size: .7rem; color: var(--text-dim); text-align: center; margin-top: -6px; margin-bottom: 14px; font-style: italic; }
+  .app-version { text-align: center; color: var(--text-dim); font-size: .72rem; margin-top: 40px; padding: 16px 0 calc(20px + env(safe-area-inset-bottom)); font-weight: 500; opacity: .6; letter-spacing: .3px; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: .85rem; border: 2px dashed var(--border); border-radius: var(--radius); }
   .empty-state .ico { font-size: 2.2rem; margin-bottom: 10px; }
 
@@ -346,6 +347,21 @@
   .modal-btn.confirm { background: var(--danger); color: #fff; }
   .modal-btn.cancel { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 
+  /* SCAN MODAL */
+  .modal.scan-modal { max-width: 520px; text-align: left; }
+  .modal.scan-modal h3 { text-align: center; }
+  .scan-hint { color: var(--text-dim); font-size: .78rem; margin-bottom: 16px !important; text-align: center; }
+  .scan-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; margin-bottom: 18px; padding: 4px 2px; }
+  .scan-row { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+  .scan-check { width: 20px; height: 20px; margin-top: 6px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+  .scan-row-fields { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+  .scan-row-fields .form-input { padding: 8px 10px; font-size: .85rem; }
+  .scan-row-preview { grid-column: 2; font-size: .7rem; color: var(--text-dim); padding: 2px 0; word-break: break-all; line-height: 1.4; }
+  .scan-row-preview strong { color: var(--accent); }
+  .scan-warn { color: var(--danger); font-weight: 600; }
+  .modal.scan-modal .modal-btn.confirm { background: var(--accent); }
+  .modal.scan-modal .modal-btn.confirm:hover { background: var(--accent-light); }
+
   .upload-progress { display: none; margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; gap: 10px; flex-direction: column; }
   .upload-progress.visible { display: flex; }
   .progress-bar-wrap { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
@@ -479,6 +495,19 @@
   </div>
 </div>
 
+<!-- SCAN RESULTS MODAL -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal scan-modal">
+    <h3>Found <span id="scan-results-count">0</span> New Active Jobs</h3>
+    <p class="scan-hint">Tick which to add. Edit Job Number or Name before confirming if needed.</p>
+    <div class="scan-list" id="scan-results-list"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" id="scan-cancel-btn" onclick="closeScanModal()">Cancel</button>
+      <button class="modal-btn confirm" id="scan-confirm-btn" onclick="confirmAddScanned()">Add Selected</button>
+    </div>
+  </div>
+</div>
+
 <!-- ERROR -->
 <div class="screen" id="screen-error">
   <div class="login-card">
@@ -539,12 +568,18 @@
   <div class="topbar">
     <div class="app-title">SiteLog</div>
     <div class="user-pill"><span class="dot"></span><span id="user-name-pill">Manager</span></div>
-    <button class="icon-btn" id="settings-btn" onclick="openSettings()">⚙</button>
+    <button class="icon-btn" id="settings-btn" onclick="openSettings()" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
   </div>
   <div class="content">
     <div class="section-label">Select Job Site</div>
     <div class="reorder-hint" id="reorder-hint" style="display:none">Tip: hold &amp; drag onto another job to swap</div>
     <div class="job-grid" id="job-grid"></div>
+    <div class="app-version" id="app-version"></div>
   </div>
 </div>
 
@@ -696,20 +731,11 @@
 
         <div id="admin-tab-jobs" class="admin-tab-content">
           <div class="admin-section">
-            <h3 style="font-size:.9rem">Create New Job</h3>
-            <div class="add-job-form">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-                <div>
-                  <label class="form-label">Job Number</label>
-                  <input type="text" class="form-input" id="new-job-number" placeholder="e.g. 2504">
-                </div>
-                <div>
-                  <label class="form-label">Job Name</label>
-                  <input type="text" class="form-input" id="new-job-name" placeholder="e.g. LF">
-                </div>
-              </div>
-              <button class="save-settings-btn admin" onclick="createNewJob()">+ Create Job &amp; Folder</button>
-            </div>
+            <h3 style="font-size:.9rem">Add Jobs From AH Jobs Rego</h3>
+            <p style="font-size:.78rem;color:var(--text-dim);margin:6px 0 12px;line-height:1.4">
+              Scan finds active jobs from AH Jobs Rego that aren't yet in SiteLog. You can edit each job before adding.
+            </p>
+            <button class="save-settings-btn admin" id="scan-rego-btn" onclick="scanRegoJobs()">🔍 Scan AH Jobs Rego</button>
           </div>
           <div class="section-label">Active Jobs</div>
           <div class="admin-job-list" id="admin-active-jobs"></div>
@@ -747,13 +773,19 @@
 
 <script>
 const ADMIN_EMAIL_DEFAULT = 'oskar@auhs.com.au';
+const APP_VERSION = 'v1.6';
 const SHAREPOINT_HOSTNAME = 'auzziehomes.sharepoint.com';
 const SHAREPOINT_SITE_PATH = '/sites/AHSite';
+const REGO_SITE_PATH = '/sites/AHOffice';
+const REGO_LIST_NAME = 'AH Jobs Rego';
 const ROOT_FOLDER = 'AAA SiteLog';
 const CONFIG_FILE = 'sitelog-config.json';
 const ARCHIVE_SUBFOLDER = 'Archived';
 const GRAPH_SCOPE = ['Files.ReadWrite.All', 'Sites.ReadWrite.All', 'User.Read'];
 const MAX_PIXELS_2MP = 2_000_000; // 2 megapixels
+
+let regoSiteId = null;
+let regoListId = null;
 
 let msalInstance = null;
 let currentAccount = null;
@@ -836,6 +868,74 @@ async function getSharePointIds() {
 function spDriveBase() {
   return `https://graph.microsoft.com/v1.0/drives/${driveId}`;
 }
+
+// ════════════════════════════════════════════════════════════════
+//  AH JOBS REGO — Read active jobs from SharePoint list on AHOffice
+// ════════════════════════════════════════════════════════════════
+async function getRegoIds() {
+  if (regoSiteId && regoListId) return { regoSiteId, regoListId };
+  // 1. Get AHOffice site ID
+  const siteUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_HOSTNAME}:${REGO_SITE_PATH}`;
+  const r = await fetch(siteUrl, { headers: { Authorization: 'Bearer ' + currentToken } });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error('Cannot access AHOffice site: ' + (err.error?.message || r.status));
+  }
+  const site = await r.json();
+  regoSiteId = site.id;
+  // 2. Find the AH Jobs Rego list
+  const listsUrl = `https://graph.microsoft.com/v1.0/sites/${regoSiteId}/lists?$select=id,name,displayName`;
+  const lr = await fetch(listsUrl, { headers: { Authorization: 'Bearer ' + currentToken } });
+  if (!lr.ok) throw new Error('Cannot enumerate AHOffice lists');
+  const lists = (await lr.json()).value || [];
+  const match = lists.find(l =>
+    (l.name && l.name.toLowerCase() === REGO_LIST_NAME.toLowerCase()) ||
+    (l.displayName && l.displayName.toLowerCase() === REGO_LIST_NAME.toLowerCase())
+  );
+  if (!match) throw new Error(`List "${REGO_LIST_NAME}" not found on AHOffice site`);
+  regoListId = match.id;
+  return { regoSiteId, regoListId };
+}
+
+// Fetch all items from AH Jobs Rego with paging
+async function fetchRegoJobs() {
+  await getRegoIds();
+  let url = `https://graph.microsoft.com/v1.0/sites/${regoSiteId}/lists/${regoListId}/items?$expand=fields&$top=200`;
+  const items = [];
+  while (url) {
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + currentToken } });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error('Failed to read AH Jobs Rego: ' + (err.error?.message || r.status));
+    }
+    const data = await r.json();
+    if (data.value) items.push(...data.value);
+    url = data['@odata.nextLink'] || null;
+  }
+  // Normalise: pull jobCode, jobName, status from fields
+  return items
+    .map(it => {
+      const f = it.fields || {};
+      const code = String(f.jobCode || '').trim();
+      const name = String(f.jobName || '').trim();
+      const status = String(f.status || '').trim().toLowerCase();
+      return { id: it.id, code, name, status };
+    })
+    .filter(j => j.code);
+}
+
+// Check if a job code already exists in SiteLog config (active OR archived)
+function isJobInSiteLog(code, name) {
+  const target = `${code} ${name}`.trim().toLowerCase();
+  return cloudConfig.jobs.some(j => {
+    const existing = jobFullCode ? jobFullCode(j).toLowerCase() : `${j.code || ''}`.toLowerCase();
+    return existing === target;
+  });
+}
+
+// Detect characters that break SharePoint folder names
+const INVALID_FOLDER_CHARS_RE = /[\\\/:*?"<>|#%&{}~]/;
+function hasInvalidFolderChars(s) { return INVALID_FOLDER_CHARS_RE.test(s); }
 
 // ════════════════════════════════════════════════════════════════
 //  CLOUD CONFIG (in SharePoint now)
@@ -1022,6 +1122,12 @@ window.addEventListener('popstate', (e) => {
       history.pushState({ screen: navStack[navStack.length - 1], depth: navStack.length - 1 }, '', '');
       return;
     }
+    // 2b. Scan modal open? Close it.
+    if (document.getElementById('scanModal').classList.contains('open')) {
+      closeScanModal();
+      history.pushState({ screen: navStack[navStack.length - 1], depth: navStack.length - 1 }, '', '');
+      return;
+    }
     // 3. On camera screen — handle cleanup
     const onCamera = document.getElementById('screen-camera').classList.contains('active');
     if (onCamera) {
@@ -1102,9 +1208,11 @@ function renderJobs() {
   const jobs = sortByUserOrder(getMyAuthorisedJobs());
   const grid = document.getElementById('job-grid');
   document.getElementById('user-name-pill').textContent = getMyName();
+  const versionEl = document.getElementById('app-version');
+  if (versionEl) versionEl.textContent = `SiteLog ${APP_VERSION}`;
   const sBtn = document.getElementById('settings-btn');
-  if (isAdmin) { sBtn.classList.add('admin'); sBtn.textContent = '🛡'; }
-  else { sBtn.classList.remove('admin'); sBtn.textContent = '⚙'; }
+  if (isAdmin) sBtn.classList.add('admin');
+  else sBtn.classList.remove('admin');
   const hint = document.getElementById('reorder-hint');
   if (jobs.length === 0) {
     hint.style.display = 'none';
@@ -2663,41 +2771,146 @@ function renderAdminJobs() {
   }
 }
 
-async function createNewJob() {
-  const number = document.getElementById('new-job-number').value.trim();
-  const name = document.getElementById('new-job-name').value.trim();
-  if (!number) { showToast('Enter Job Number', 'error'); return; }
-  if (!name) { showToast('Enter Job Name', 'error'); return; }
-  const fullCode = `${number} ${name}`;
-  if (cloudConfig.jobs.some(j => jobFullCode(j).toLowerCase() === fullCode.toLowerCase())) {
-    showToast('Job Already Exists', 'error'); return;
-  }
-  showToast('Creating Folder...', '');
-  await getToken();
+// ════════════════════════════════════════════════════════════════
+//  SCAN AH JOBS REGO — Read list, show editable popup, add selected
+// ════════════════════════════════════════════════════════════════
+async function scanRegoJobs() {
+  const btn = document.getElementById('scan-rego-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
   try {
-    // Step 1: Create the folder
-    await ensureFolder(`${ROOT_FOLDER}/${fullCode}`);
-    // Step 2: Verify the folder really exists (catches silent network failures)
-    const verify = await fetch(`${spDriveBase()}/root:/${encodeURIPath(`${ROOT_FOLDER}/${fullCode}`)}`, {
-      headers: { Authorization: 'Bearer ' + currentToken }
-    });
-    if (!verify.ok) throw new Error('Folder creation could not be confirmed');
-    // Step 3: Now save to config
-    const newJob = { id: genId(), number, name, archived: false };
-    cloudConfig.jobs.push(newJob);
-    const adminEmail = getAdminEmail();
-    if (cloudConfig.managers[adminEmail]) {
-      cloudConfig.managers[adminEmail].jobIds.push(newJob.id);
+    await getToken();
+    const regoJobs = await fetchRegoJobs();
+    // Filter: status === 'active' and not already in SiteLog
+    const candidates = regoJobs
+      .filter(j => j.status === 'active')
+      .filter(j => !isJobInSiteLog(j.code, j.name));
+    if (candidates.length === 0) {
+      showToast('No New Jobs Found', '');
+      return;
     }
-    await saveCloudConfig();
-    document.getElementById('new-job-number').value = '';
-    document.getElementById('new-job-name').value = '';
-    renderAdminJobs();
-    renderAdminManagers();
-    showToast(`✅ Job "${fullCode}" Created With Folder`, 'success');
+    showScanResultsModal(candidates);
   } catch(e) {
-    showToast('Failed: ' + e.message, 'error');
+    console.error('Scan error:', e);
+    showToast('Scan Failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
+}
+
+function showScanResultsModal(candidates) {
+  const modal = document.getElementById('scanModal');
+  const list = document.getElementById('scan-results-list');
+  const count = document.getElementById('scan-results-count');
+  count.textContent = candidates.length;
+  // Build editable rows
+  list.innerHTML = candidates.map((j, i) => `
+    <div class="scan-row" data-idx="${i}">
+      <input type="checkbox" class="scan-check" id="scan-check-${i}" checked>
+      <div class="scan-row-fields">
+        <input type="text" class="form-input scan-num" data-idx="${i}" value="${escHtml(j.code)}" placeholder="Number">
+        <input type="text" class="form-input scan-name" data-idx="${i}" value="${escHtml(j.name)}" placeholder="Name">
+      </div>
+      <div class="scan-row-preview" id="scan-preview-${i}"></div>
+    </div>
+  `).join('');
+  // Live folder preview updates as user types
+  list.querySelectorAll('.scan-num, .scan-name').forEach(inp => {
+    inp.addEventListener('input', () => updateScanPreview(inp.dataset.idx));
+  });
+  // Initial previews
+  candidates.forEach((_, i) => updateScanPreview(i));
+  modal.classList.add('open');
+}
+
+function updateScanPreview(idx) {
+  const num = (document.querySelector(`.scan-num[data-idx="${idx}"]`)?.value || '').trim();
+  const name = (document.querySelector(`.scan-name[data-idx="${idx}"]`)?.value || '').trim();
+  const preview = document.getElementById(`scan-preview-${idx}`);
+  if (!preview) return;
+  const full = `${num} ${name}`.trim();
+  const hasBad = hasInvalidFolderChars(num) || hasInvalidFolderChars(name);
+  if (!num || !name) {
+    preview.innerHTML = `<span class="scan-warn">⚠ Number and Name both required</span>`;
+  } else if (hasBad) {
+    preview.innerHTML = `<span class="scan-warn">⚠ Contains invalid characters — please edit</span>`;
+  } else {
+    preview.innerHTML = `📁 ${escHtml(ROOT_FOLDER)} / <strong>${escHtml(full)}</strong> /`;
+  }
+}
+
+function closeScanModal() {
+  document.getElementById('scanModal').classList.remove('open');
+}
+
+async function confirmAddScanned() {
+  const rows = document.querySelectorAll('#scan-results-list .scan-row');
+  const toAdd = [];
+  for (const row of rows) {
+    const idx = row.dataset.idx;
+    const checked = document.getElementById(`scan-check-${idx}`).checked;
+    if (!checked) continue;
+    const num = (document.querySelector(`.scan-num[data-idx="${idx}"]`).value || '').trim();
+    const name = (document.querySelector(`.scan-name[data-idx="${idx}"]`).value || '').trim();
+    if (!num || !name) {
+      showToast(`Row ${parseInt(idx)+1}: Number And Name Required`, 'error'); return;
+    }
+    if (hasInvalidFolderChars(num) || hasInvalidFolderChars(name)) {
+      showToast(`Row ${parseInt(idx)+1}: Invalid Characters In Name`, 'error'); return;
+    }
+    const fullCode = `${num} ${name}`;
+    if (cloudConfig.jobs.some(j => jobFullCode(j).toLowerCase() === fullCode.toLowerCase())) {
+      showToast(`Row ${parseInt(idx)+1}: "${fullCode}" Already In SiteLog`, 'error'); return;
+    }
+    toAdd.push({ number: num, name });
+  }
+  if (toAdd.length === 0) {
+    showToast('No Jobs Selected', 'error'); return;
+  }
+  // Disable buttons during work
+  document.getElementById('scan-confirm-btn').disabled = true;
+  document.getElementById('scan-cancel-btn').disabled = true;
+  showToast(`Creating ${toAdd.length} Job${toAdd.length>1?'s':''}...`, '');
+  await getToken();
+  let success = 0;
+  const failures = [];
+  const adminEmail = getAdminEmail();
+  for (const job of toAdd) {
+    const fullCode = `${job.number} ${job.name}`;
+    try {
+      await ensureFolder(`${ROOT_FOLDER}/${fullCode}`);
+      const newJob = { id: genId(), number: job.number, name: job.name, archived: false };
+      cloudConfig.jobs.push(newJob);
+      if (cloudConfig.managers[adminEmail]) {
+        cloudConfig.managers[adminEmail].jobIds.push(newJob.id);
+      }
+      success++;
+    } catch(e) {
+      console.error('Add scanned job error:', e);
+      failures.push(`${fullCode}: ${e.message}`);
+    }
+  }
+  try {
+    await saveCloudConfig();
+  } catch(e) {
+    showToast('Save Config Failed: ' + e.message, 'error');
+    document.getElementById('scan-confirm-btn').disabled = false;
+    document.getElementById('scan-cancel-btn').disabled = false;
+    return;
+  }
+  closeScanModal();
+  renderAdminJobs();
+  renderAdminManagers();
+  if (failures.length === 0) {
+    showToast(`✅ ${success} Job${success>1?'s':''} Added`, 'success');
+  } else {
+    showToast(`Added ${success}, ${failures.length} Failed`, 'error');
+    console.warn('Scan add failures:', failures);
+  }
+  document.getElementById('scan-confirm-btn').disabled = false;
+  document.getElementById('scan-cancel-btn').disabled = false;
 }
 
 function archiveJob(id) {
