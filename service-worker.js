@@ -1,6 +1,6 @@
 // SiteLog Service Worker
 // Strategy: network-first for HTML/JS (always get latest), cache-first for icons
-const CACHE_VERSION = 'sitelog-v7';
+const CACHE_VERSION = 'sitelog-v8';
 const CORE_CACHE = [
   './',
   './index.html',

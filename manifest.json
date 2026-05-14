@@ -1,6 +1,6 @@
 {
-  "name": "SiteLog - Site Photo Logger",
-  "short_name": "SiteLog",
+  "name": "AH Site Log",
+  "short_name": "AH Site Log",
   "description": "Site photo logging app with SharePoint upload",
   "start_url": "./index.html",
   "scope": "./",

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f6334">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>SiteLog</title>
+<title>AH Site Log</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -466,8 +466,8 @@
 <body>
 
 <div id="loader">
-  <div class="logo">📸 SiteLog</div>
-  <div class="sub">Site Photo Logger</div>
+  <div class="logo">📸 AH Site Log</div>
+  <div class="sub">Construction Photo Logger</div>
   <div class="spinner"></div>
   <div class="msg" id="loader-msg">Initialising...</div>
 </div>
@@ -536,7 +536,7 @@
 <div class="screen" id="screen-login">
   <div class="login-card">
     <div class="login-icon">🏗️</div>
-    <h1>SiteLog</h1>
+    <h1>AH Site Log</h1>
     <p>Sign in with your Microsoft 365 account to continue.</p>
     <button class="ms-btn" onclick="signIn()">
       <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
@@ -566,7 +566,7 @@
 <!-- JOBS -->
 <div class="screen" id="screen-jobs">
   <div class="topbar">
-    <div class="app-title">SiteLog</div>
+    <div class="app-title">AH Site Log</div>
     <div class="user-pill"><span class="dot"></span><span id="user-name-pill">Manager</span></div>
     <button class="icon-btn" id="settings-btn" onclick="openSettings()" aria-label="Settings">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -733,7 +733,7 @@
           <div class="admin-section">
             <h3 style="font-size:.9rem">Add Jobs From AH Jobs Rego</h3>
             <p style="font-size:.78rem;color:var(--text-dim);margin:6px 0 12px;line-height:1.4">
-              Scan finds active jobs from AH Jobs Rego that aren't yet in SiteLog. You can edit each job before adding.
+              Scan finds active jobs from AH Jobs Rego that aren't yet in AH Site Log. You can edit each job before adding.
             </p>
             <button class="save-settings-btn admin" id="scan-rego-btn" onclick="scanRegoJobs()">🔍 Scan AH Jobs Rego</button>
           </div>
@@ -773,7 +773,7 @@
 
 <script>
 const ADMIN_EMAIL_DEFAULT = 'oskar@auhs.com.au';
-const APP_VERSION = 'v1.7';
+const APP_VERSION = 'v1.8';
 const SHAREPOINT_HOSTNAME = 'auzziehomes.sharepoint.com';
 const SHAREPOINT_SITE_PATH = '/sites/AHSite';
 const REGO_SITE_PATH = '/sites/AHOffice';
@@ -1213,7 +1213,7 @@ function renderJobs() {
   const grid = document.getElementById('job-grid');
   document.getElementById('user-name-pill').textContent = getMyName();
   const versionEl = document.getElementById('app-version');
-  if (versionEl) versionEl.textContent = `SiteLog ${APP_VERSION}`;
+  if (versionEl) versionEl.textContent = `AH Site Log ${APP_VERSION}`;
   const sBtn = document.getElementById('settings-btn');
   if (isAdmin) sBtn.classList.add('admin');
   else sBtn.classList.remove('admin');
@@ -2866,7 +2866,7 @@ async function confirmAddScanned() {
     }
     const fullCode = `${num} ${name}`;
     if (cloudConfig.jobs.some(j => jobFullCode(j).toLowerCase() === fullCode.toLowerCase())) {
-      showToast(`Row ${parseInt(idx)+1}: "${fullCode}" Already In SiteLog`, 'error'); return;
+      showToast(`Row ${parseInt(idx)+1}: "${fullCode}" Already In AH Site Log`, 'error'); return;
     }
     toAdd.push({ number: num, name });
   }
