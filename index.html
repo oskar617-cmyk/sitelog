@@ -757,7 +757,7 @@
 
 <script>
 const ADMIN_EMAIL_DEFAULT = 'oskar@auhs.com.au';
-const APP_VERSION = 'v1.4';
+const APP_VERSION = 'v1.5';
 const SHAREPOINT_HOSTNAME = 'auzziehomes.sharepoint.com';
 const SHAREPOINT_SITE_PATH = '/sites/AHSite';
 const ROOT_FOLDER = 'AAA SiteLog';
@@ -852,28 +852,31 @@ function spDriveBase() {
 //  CLOUD CONFIG (in SharePoint now)
 // ════════════════════════════════════════════════════════════════
 async function loadCloudConfig() {
-  try {
-    await getSharePointIds();
-    const path = `${ROOT_FOLDER}/${CONFIG_FILE}`;
-    const res = await fetch(`${spDriveBase()}/root:/${encodeURIPath(path)}:/content`, {
-      headers: { Authorization: 'Bearer ' + currentToken }
-    });
-    if (res.status === 404) {
-      cloudConfig = defaultConfig();
-      await saveCloudConfig();
-      return;
-    }
-    if (!res.ok) throw new Error('Config load: ' + res.status);
-    cloudConfig = await res.json();
-    if (!cloudConfig.adminEmail) cloudConfig.adminEmail = ADMIN_EMAIL_DEFAULT;
-    if (!cloudConfig.managers) cloudConfig.managers = {};
-    if (!cloudConfig.jobs) cloudConfig.jobs = [];
-    // Backward-compat: ensure all jobs have number+name fields
-    cloudConfig.jobs = cloudConfig.jobs.map(normaliseJob);
-  } catch (e) {
-    console.error('Config error:', e);
+  await getSharePointIds();
+  const path = `${ROOT_FOLDER}/${CONFIG_FILE}`;
+  const res = await fetch(`${spDriveBase()}/root:/${encodeURIPath(path)}:/content`, {
+    headers: { Authorization: 'Bearer ' + currentToken }
+  });
+  if (res.status === 404) {
+    // Truly missing — first run
     cloudConfig = defaultConfig();
+    await saveCloudConfig();
+    return;
   }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Config load failed (HTTP ${res.status}): ${text.slice(0, 200)}`);
+  }
+  try {
+    cloudConfig = await res.json();
+  } catch (parseErr) {
+    throw new Error('Config file exists but is not valid JSON. Restore from a backup or contact developer.');
+  }
+  if (!cloudConfig.adminEmail) cloudConfig.adminEmail = ADMIN_EMAIL_DEFAULT;
+  if (!cloudConfig.managers) cloudConfig.managers = {};
+  if (!cloudConfig.jobs) cloudConfig.jobs = [];
+  // Backward-compat: ensure all jobs have number+name fields
+  cloudConfig.jobs = cloudConfig.jobs.map(normaliseJob);
 }
 
 async function saveCloudConfig() {
